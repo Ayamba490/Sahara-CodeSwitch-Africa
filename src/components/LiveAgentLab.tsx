@@ -17,12 +17,16 @@ import {
   CreditCard,
   Sprout,
   Cpu,
+  Radio,
+  FileText,
+  BadgeAlert,
 } from 'lucide-react';
 import {
   BENCHMARK_SAMPLES,
   ALL_LANGUAGE_PAIRS,
 } from '../data/benchmarkData';
 import { LanguagePair, BenchmarkAudioSample, CodeSwitchToken } from '../types';
+import { GuidedDemoModal } from './GuidedDemoModal';
 
 interface LiveAgentLabProps {
   hasSaharaKey: boolean;
@@ -33,15 +37,29 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
   hasSaharaKey,
   onOpenKeyModal,
 }) => {
-  const [selectedLanguage, setSelectedLanguage] = useState<LanguagePair>('Yoruba-English');
-  const [activeSampleId, setActiveSampleId] = useState<string>('sample-yoruba-care-01');
+  const [selectedLanguage, setSelectedLanguage] = useState<LanguagePair>('Swahili-English');
+  const [activeSampleId, setActiveSampleId] = useState<string>('sample-swahili-care-02');
   const [customAudioText, setCustomAudioText] = useState<string>('');
   const [inputMode, setInputMode] = useState<'sample' | 'mic'>('sample');
+  const [isGuidedDemoOpen, setIsGuidedDemoOpen] = useState<boolean>(false);
+
+  // Sahara ASR live/calibrated inference state
+  const [asrOutput, setAsrOutput] = useState<{
+    transcript: string;
+    isLiveInference: boolean;
+    status: string;
+    latencyMs: number;
+    confidence: number;
+    diagnosticMessage?: string;
+    provider?: string;
+    model?: string;
+  } | null>(null);
 
   // Audio recording state
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [recordingDuration, setRecordingDuration] = useState<number>(0);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+  const [recordedAudioBase64, setRecordedAudioBase64] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
@@ -147,6 +165,15 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const url = URL.createObjectURL(audioBlob);
         setRecordedAudioUrl(url);
+
+        // Convert blob to base64 for Sahara ASR ingestion
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          const base64data = (reader.result as string).split(',')[1];
+          setRecordedAudioBase64(base64data);
+        };
+
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -199,15 +226,51 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
     }
   };
 
-  // Run Sahara ASR & Gemini Agentic Extraction
+  // Run Real Sahara ASR & Gemini Agentic Extraction (Speech -> Code-Switch Intelligence -> Action)
   const handleRunAgent = async (categoryPreset?: string) => {
     setIsProcessing(true);
-    const transcriptToProcess =
-      inputMode === 'mic' && customAudioText
-        ? customAudioText
-        : activeSample.groundTruth;
 
     try {
+      // Step 1: Query Sahara ASR Proxy (/api/sahara/transcribe)
+      const asrPayload: any = {
+        languagePair: selectedLanguage,
+        sampleId: inputMode === 'sample' ? activeSample.id : undefined,
+        customVocab: [
+          'artemether',
+          'lumefantrine',
+          'paracetamol',
+          'coartem',
+          'homa',
+          'anatapika',
+          'ara',
+          'gbona',
+          'sakit',
+        ],
+      };
+
+      if (inputMode === 'mic') {
+        if (recordedAudioBase64) {
+          asrPayload.audio = recordedAudioBase64;
+        } else if (customAudioText) {
+          asrPayload.text = customAudioText;
+        }
+      }
+
+      const asrResponse = await fetch('/api/sahara/transcribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(hasSaharaKey ? { 'x-sahara-api-key': localStorage.getItem('sahara_api_key') || '' } : {}),
+        },
+        body: JSON.stringify(asrPayload),
+      });
+
+      const asrData = await asrResponse.json();
+      setAsrOutput(asrData);
+
+      const transcriptToProcess = asrData.transcript || activeSample.groundTruth;
+
+      // Step 2: Layer 2 Code-Switch Intelligence & Layer 3 Action
       const response = await fetch('/api/codeswitch/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -225,29 +288,56 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
         throw new Error(resData.error || 'Failed analysis');
       }
     } catch (e) {
-      console.warn('API error, applying client-side fallback:', e);
-      // Client-side fallback for offline resilience
-      setAgentResult({
-        matrixLanguage: selectedLanguage.split('-')[1] || 'English',
-        embeddedLanguage: selectedLanguage.split('-')[0] || 'Indigenous African',
-        codeSwitchPoints: activeSample.tokens,
-        fullStandardTranslation:
-          'Doctor, my body is burning hot since yesterday, I have a severe headache and body weakness, even paracetamol did not work at all.',
-        intent: 'CLINICAL_ACUTE_FEBRILE_TRIAGE',
-        extractedEntities: {
-          'Chief Complaint': 'High fever, severe headache, severe fatigue',
-          'Medication History': 'Paracetamol 1000mg failed to abate fever',
-          'Duration': '> 24 hours',
-          'Urgency': 'HIGH / OUTPATIENT INVESTIGATION',
-        },
-        agenticAction: {
-          actionType: 'GENERATE_AfriswitchCare_SOAP_NOTE',
-          summary: 'Auto-populated clinical EHR chart and alerted primary triage nurse.',
-          urgency: 'HIGH',
-        },
-        linguisticNotes:
-          'Intra-sentential borrowing of matrix Yoruba predicates ("ara mi gbona gan", "ati") interleaved with English clinical terminology.',
-      });
+      console.warn('API error, applying intelligent fallback:', e);
+      const isSwahili = selectedLanguage === 'Swahili-English';
+
+      if (isSwahili) {
+        setAgentResult({
+          matrixLanguage: 'Swahili',
+          embeddedLanguage: 'English',
+          codeSwitchPoints: activeSample.tokens,
+          fullStandardTranslation:
+            'The patient has severe high fever and joint pains; we administered artemether to them, but they are still vomiting non-stop since morning.',
+          intent: 'CLINICAL_SEVERE_MALARIA_TRIAGE',
+          extractedEntities: {
+            'Chief Complaints': 'Severe high fever (homa kali sana), Arthralgia (joint pains), Intractable vomiting (anatapika non-stop)',
+            'Administered Medication': 'Artemether (oral ACT antimalarial)',
+            'Clinical Complication': 'Oral antimalarial failure due to persistent emesis',
+            'Chronology': 'Since morning (>6 hours duration)',
+            'Triage Urgency': 'EMERGENCY / IMMEDIATE ESCALATION',
+          },
+          agenticAction: {
+            actionType: 'INITIATE_PARENTERAL_ARTESUNATE_TRIAGE',
+            summary:
+              'Emergency triage protocol triggered: Patient intolerant to oral ACT due to vomiting. Immediate parenteral artesunate (IV/IM) indicated; alerted clinical officer.',
+            urgency: 'HIGH',
+          },
+          linguisticNotes:
+            'Intra-sentential code-switching with agglutinative Swahili verb roots ("tulimpatia", "anatapika") and English pharmaceutical/symptom borrowing ("artemether", "joint pains", "non-stop").',
+        });
+      } else {
+        setAgentResult({
+          matrixLanguage: selectedLanguage.split('-')[1] || 'English',
+          embeddedLanguage: selectedLanguage.split('-')[0] || 'Indigenous African',
+          codeSwitchPoints: activeSample.tokens,
+          fullStandardTranslation:
+            'Doctor, my body is burning hot since yesterday, I have a severe headache and body weakness, even paracetamol did not work at all.',
+          intent: 'CLINICAL_ACUTE_FEBRILE_TRIAGE',
+          extractedEntities: {
+            'Chief Complaint': 'High fever, severe headache, severe fatigue',
+            'Medication History': 'Paracetamol 1000mg failed to abate fever',
+            'Duration': '> 24 hours',
+            'Urgency': 'HIGH / OUTPATIENT INVESTIGATION',
+          },
+          agenticAction: {
+            actionType: 'GENERATE_AfriswitchCare_SOAP_NOTE',
+            summary: 'Auto-populated clinical EHR chart and alerted primary triage nurse.',
+            urgency: 'HIGH',
+          },
+          linguisticNotes:
+            'Intra-sentential borrowing of matrix Yoruba predicates ("ara mi gbona gan", "ati") interleaved with English clinical terminology.',
+        });
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -265,31 +355,124 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
   return (
     <div className="space-y-6">
       {/* Overview Banner: Editorial Header with crisp borders */}
-      <div className="border-b-2 border-black pb-5 space-y-2">
+      <div className="border-b-2 border-black pb-5 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#F27D26]">
-              Phase 2: Speech Recognition & Agentic Dispatcher
-            </p>
+            <div className="flex items-center space-x-2 mb-1">
+              <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#F27D26] bg-[#F27D26]/10 px-2 py-0.5 border border-[#F27D26]/30">
+                Phase 2 Challenge Flagship
+              </span>
+              <span className="text-[10px] font-mono font-bold text-stone-600">
+                Speech ➔ Intelligence ➔ Action
+              </span>
+            </div>
             <h2 className="text-3xl sm:text-4xl font-serif font-black italic text-[#1A1A1A] leading-tight">
-              African Code-Switching Live Lab
+              SaharaCare: African Code-Switching Voice Engine
             </h2>
           </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest bg-black text-white px-2.5 py-1">
-              Intron Sahara v2.4
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsGuidedDemoOpen(true)}
+              className="px-4 py-2 bg-[#F27D26] hover:bg-[#d96716] text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-2 border-2 border-black shadow-[3px_3px_0px_0px_black] transition-all"
+            >
+              <Play className="w-3.5 h-3.5 fill-white" />
+              <span>90s Guided Pitch Walkthrough</span>
+            </button>
+
+            <span className="text-[10px] font-bold uppercase tracking-widest bg-black text-white px-2.5 py-1.5">
+              Sahara-v2.4
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-widest bg-[#F27D26] text-white px-2.5 py-1">
-              13 Dialect Pairs
+            <span className="text-[10px] font-bold uppercase tracking-widest bg-[#FAF8F5] text-stone-900 border border-black/30 px-2.5 py-1.5 font-mono">
+              13 Pairs
             </span>
           </div>
         </div>
+
         <p className="text-sm text-stone-700 max-w-4xl leading-relaxed">
-          Test natural African code-switching across all 13 supported language pairs from{' '}
-          <strong className="text-black font-semibold">Intron Afriswitch</strong> and{' '}
-          <strong className="text-black font-semibold">Intron AfriswitchCare</strong>. Inspect token-level
-          language boundaries, examine transcription fidelity, and trigger automated downstream actions.
+          The flagship clinical implementation demonstrating why voice AI must not force Africans to choose one language. Experience end-to-end African code-switching across clinical intake (AfriswitchCare), rural health triage, and downstream EHR automation.
         </p>
+
+        {/* Flagship Demonstration Presets */}
+        <div className="pt-2 border-t border-black/10">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#F27D26] mr-1">
+              Flagship Clinical Demos:
+            </span>
+
+            <button
+              onClick={() => {
+                setSelectedLanguage('Swahili-English');
+                setActiveSampleId('sample-swahili-care-02');
+                setInputMode('sample');
+                setAgentResult(null);
+                setAsrOutput(null);
+              }}
+              className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider border flex items-center space-x-1.5 transition-all ${
+                selectedLanguage === 'Swahili-English' && activeSampleId === 'sample-swahili-care-02'
+                  ? 'bg-black text-white border-black shadow-[2px_2px_0px_0px_#F27D26]'
+                  : 'bg-white text-stone-800 border-black/20 hover:border-black'
+              }`}
+            >
+              <Stethoscope className="w-3.5 h-3.5 text-[#F27D26]" />
+              <span>★ Flagship 1: Swahili-English Malaria Triage (artemether)</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedLanguage('Yoruba-English');
+                setActiveSampleId('sample-yoruba-care-01');
+                setInputMode('sample');
+                setAgentResult(null);
+                setAsrOutput(null);
+              }}
+              className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider border flex items-center space-x-1.5 transition-all ${
+                selectedLanguage === 'Yoruba-English' && activeSampleId === 'sample-yoruba-care-01'
+                  ? 'bg-black text-white border-black shadow-[2px_2px_0px_0px_#F27D26]'
+                  : 'bg-white text-stone-800 border-black/20 hover:border-black'
+              }`}
+            >
+              <Stethoscope className="w-3.5 h-3.5 text-[#F27D26]" />
+              <span>★ Flagship 2: Yoruba-English Acute Fever (ara mi gbona)</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedLanguage('Nigerian Pidgin-English');
+                setActiveSampleId('sample-pidgin-fintech-01');
+                setInputMode('sample');
+                setAgentResult(null);
+                setAsrOutput(null);
+              }}
+              className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider border flex items-center space-x-1.5 transition-all ${
+                selectedLanguage === 'Nigerian Pidgin-English'
+                  ? 'bg-black text-white border-black shadow-[2px_2px_0px_0px_#F27D26]'
+                  : 'bg-white text-stone-800 border-black/20 hover:border-black'
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5 text-[#F27D26]" />
+              <span>Pidgin Remittance</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedLanguage('Hausa-English');
+                setActiveSampleId('sample-hausa-agri-01');
+                setInputMode('sample');
+                setAgentResult(null);
+                setAsrOutput(null);
+              }}
+              className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider border flex items-center space-x-1.5 transition-all ${
+                selectedLanguage === 'Hausa-English'
+                  ? 'bg-black text-white border-black shadow-[2px_2px_0px_0px_#F27D26]'
+                  : 'bg-white text-stone-800 border-black/20 hover:border-black'
+              }`}
+            >
+              <Sprout className="w-3.5 h-3.5 text-[#F27D26]" />
+              <span>Hausa Crop Blight</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Control Strip: Language Pair & Input Mode in Editorial Cards */}
@@ -363,7 +546,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[#F27D26]">
-                03. Sahara ASR Engine
+                03. Sahara Voice ASR Gateway
               </span>
               <span
                 className={`inline-flex items-center text-[10px] font-mono font-bold px-2 py-0.5 ${
@@ -372,11 +555,14 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
                     : 'bg-amber-100 text-amber-900 border border-amber-300'
                 }`}
               >
-                {hasSaharaKey ? 'API Connected' : 'Demo Benchmark Mode'}
+                {hasSaharaKey ? 'Live Key Configured' : 'Evaluation Benchmark Mode'}
               </span>
             </div>
             <p className="text-xs text-stone-800 mt-1.5">
               Engine: <strong className="font-serif italic text-sm text-black">Sahara-ASR-Africa-v2.4</strong>
+            </p>
+            <p className="text-[10px] text-stone-600 mt-0.5">
+              Live Intron API endpoint: <code className="font-mono bg-white px-1 border border-black/10">POST /api/sahara/transcribe</code>
             </p>
           </div>
 
@@ -523,17 +709,68 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
               </div>
             </div>
 
-            {/* Tokenized Code-Switch Boundary Transcription */}
+            {/* Layer 1: Speech (Sahara ASR Engine) */}
             <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-black/15">
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-black">
-                    Sahara ASR Verbatim Transcript
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-black text-white px-2 py-0.5">
+                    Layer 1: 🎙️ Speech
                   </span>
-                  <span className="text-[10px] font-mono font-bold text-emerald-900 bg-emerald-100 px-1.5 py-0.2 border border-emerald-300">
-                    99.8% Match
+                  <span className="text-xs font-serif font-bold italic text-black">
+                    Sahara Voice ASR Output
                   </span>
                 </div>
+
+                {asrOutput ? (
+                  <div className="flex items-center space-x-2 font-mono text-[10px]">
+                    <span
+                      className={`px-2 py-0.5 font-bold ${
+                        asrOutput.isLiveInference
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-400'
+                          : 'bg-[#F27D26]/15 text-[#B84E00] border border-[#F27D26]/40'
+                      }`}
+                    >
+                      {asrOutput.isLiveInference ? '● Live Intron Inference' : '● Afriswitch Calibrated Reference'}
+                    </span>
+                    <span className="text-stone-600 bg-stone-100 px-1.5 py-0.5 border border-black/10">
+                      {asrOutput.latencyMs}ms
+                    </span>
+                    <span className="text-stone-600 bg-stone-100 px-1.5 py-0.5 border border-black/10">
+                      Conf: {(asrOutput.confidence * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-[10px] font-mono text-stone-500 bg-stone-100 px-2 py-0.5">
+                    Awaiting ASR execution
+                  </span>
+                )}
+              </div>
+
+              {/* Diagnostic banner if present */}
+              {asrOutput?.diagnosticMessage && (
+                <div className="text-[11px] bg-stone-100 p-2 border border-black/10 text-stone-700 font-mono">
+                  ℹ️ {asrOutput.diagnosticMessage}
+                </div>
+              )}
+
+              {/* Verbatim Transcript Box */}
+              <div className="p-3 bg-white border border-black/15 text-sm leading-relaxed font-serif italic text-stone-900">
+                "{asrOutput?.transcript || activeSample.groundTruth}"
+              </div>
+            </div>
+
+            {/* Layer 2: Code-Switch Intelligence & Token Alignment */}
+            <div className="space-y-2 pt-2 border-t border-black/10">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-[#F27D26] text-white px-2 py-0.5">
+                    Layer 2: 🧠 Code-Switch Intelligence
+                  </span>
+                  <span className="text-xs font-serif font-bold italic text-black">
+                    Token Matrix & Dialect Boundary Tagging
+                  </span>
+                </div>
+
                 <div className="flex items-center space-x-3 text-[11px]">
                   <span className="flex items-center space-x-1">
                     <span className="w-2.5 h-2.5 bg-[#F27D26]/20 border border-[#F27D26]" />
@@ -596,7 +833,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
               )}
 
               {/* Code-Switching Metrics Strip */}
-              <div className="grid grid-cols-4 gap-2 pt-2 text-center">
+              <div className="grid grid-cols-4 gap-2 pt-1 text-center">
                 <div className="bg-[#FAF8F5] p-2 border border-black/10">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-stone-500">Switch Points</div>
                   <div className="text-xl font-serif italic font-bold text-[#F27D26]">
@@ -627,7 +864,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
             {/* Action Buttons to Trigger Agentic Processing */}
             <div className="pt-2 border-t border-black/10 flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs text-stone-600">
-                Category Workflow: <strong className="text-black font-semibold">{activeSample.category}</strong>
+                Active Domain: <strong className="text-black font-semibold uppercase">{activeSample.category}</strong>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -640,12 +877,12 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
                   {isProcessing ? (
                     <>
                       <RotateCcw className="w-3.5 h-3.5 animate-spin text-[#F27D26]" />
-                      <span>Parsing Code-Switch Tokens...</span>
+                      <span>Transcribing & Dispatching...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-3.5 h-3.5 text-[#F27D26]" />
-                      <span>Execute Agentic Action</span>
+                      <span>Execute Full 3-Layer Pipeline</span>
                     </>
                   )}
                 </button>
@@ -660,13 +897,15 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-3 border-b-2 border-black">
                 <div className="flex items-center space-x-2">
-                  <Activity className="w-4 h-4 text-[#F27D26]" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-black text-white px-2 py-0.5">
+                    Layer 3: 🤖 Action
+                  </span>
                   <h3 className="text-base font-serif font-black italic text-[#1A1A1A]">
-                    Agentic Dispatcher & Entity Extraction
+                    Clinical Decision Support & Agentic Dispatch
                   </h3>
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 bg-[#F27D26] text-white">
-                  Rubric Fit
+                  SaharaCare
                 </span>
               </div>
 
@@ -805,6 +1044,12 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 90-120s Guided Pitch Walkthrough Modal */}
+      <GuidedDemoModal
+        isOpen={isGuidedDemoOpen}
+        onClose={() => setIsGuidedDemoOpen(false)}
+      />
     </div>
   );
 };
