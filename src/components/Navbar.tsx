@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Mic,
   BarChart3,
   Layers,
-  FileCheck,
   Code2,
-  Clock,
   Sparkles,
   KeyRound,
   ExternalLink,
@@ -26,66 +24,32 @@ export const Navbar: React.FC<NavbarProps> = ({
   hasSaharaKey,
   onOpenKeyModal,
 }) => {
-  // Countdown to challenge deadline: 15 September 2026, 23:59:00 WAT (UTC+1)
-  const [timeLeft, setTimeLeft] = useState({
-    days: 12,
-    hours: 8,
-    minutes: 42,
-    seconds: 15,
-  });
-
-  useEffect(() => {
-    const deadline = new Date('2026-09-15T23:59:00+01:00').getTime();
-
-    const updateTimer = () => {
-      const now = new Date().getTime();
-      const diff = deadline - now;
-      if (diff > 0) {
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        setTimeLeft({ days, hours, minutes, seconds });
-      }
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   const navItems = [
     { id: 'live-lab', label: 'Live Speech Lab', icon: Mic, badge: 'Sahara ASR' },
     { id: 'translator', label: 'Bidirectional Translator', icon: Languages, badge: 'English ⇄ African' },
-    { id: 'benchmark', label: '3+ Model Benchmark', icon: BarChart3, badge: '30% Weight' },
+    { id: 'benchmark', label: '3+ Model Benchmark', icon: BarChart3, badge: 'Intron vs Global' },
     { id: 'categories', label: 'Solutions & Agents', icon: Layers, badge: 'AfriswitchCare' },
-    { id: 'submission', label: 'Submission Packager', icon: FileCheck, badge: 'Rubric 100%' },
     { id: 'api-docs', label: 'API & Integration', icon: Code2, badge: 'voice.intron.io' },
   ];
 
   return (
     <header className="sticky top-0 z-50 bg-[#FDFCFB]/95 backdrop-blur-md border-b-2 border-black">
-      {/* Top Banner: Challenge Announcement & Deadline Tracker */}
+      {/* Top Banner */}
       <div className="bg-[#FAF8F5] border-b border-black/10 px-4 py-2 text-xs">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center space-x-3">
             <span className="inline-block text-[10px] font-bold uppercase tracking-[0.2em] bg-black text-white px-2 py-0.5">
-              Phase 2: Main Challenge
+              African Voice AI
             </span>
             <span className="text-stone-700 text-xs hidden sm:inline">
-              Sahara CodeSwitch Africa by <strong className="font-bold text-[#1A1A1A]">Intron Health</strong>
+              Sahara CodeSwitch Suite by <strong className="font-bold text-[#1A1A1A]">Intron Health</strong>
             </span>
           </div>
 
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-1.5 text-[#1A1A1A]">
-              <Clock className="w-3.5 h-3.5 text-[#F27D26]" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Deadline:</span>
-              <span className="font-serif italic font-bold text-[#F27D26] text-sm">
-                {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s
-              </span>
-              <span className="text-stone-500 text-[10px] hidden md:inline">(15 Sept, 11:59pm WAT)</span>
-            </div>
+            <span className="text-stone-600 text-xs hidden md:inline">
+              Enterprise ASR & TTS across 300+ African Accents
+            </span>
 
             <a
               href="https://voice.intron.io"

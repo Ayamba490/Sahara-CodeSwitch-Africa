@@ -3,7 +3,6 @@ import { Navbar } from './components/Navbar';
 import { LiveAgentLab } from './components/LiveAgentLab';
 import { BenchmarkSuite } from './components/BenchmarkSuite';
 import { CategorySolutions } from './components/CategorySolutions';
-import { SubmissionPackager } from './components/SubmissionPackager';
 import { SaharaApiDocs } from './components/SaharaApiDocs';
 import { BidirectionalTranslator } from './components/BidirectionalTranslator';
 import { KeyModal } from './components/KeyModal';
@@ -62,8 +61,6 @@ export default function App() {
           <CategorySolutions onSelectCategoryForLab={handleSelectCategoryForLab} />
         )}
 
-        {activeTab === 'submission' && <SubmissionPackager />}
-
         {activeTab === 'api-docs' && (
           <SaharaApiDocs
             hasSaharaKey={Boolean(saharaKey)}
@@ -89,7 +86,7 @@ export default function App() {
             </span>
             <span className="text-black/30">•</span>
             <span className="text-[11px] uppercase tracking-widest font-bold text-[#F27D26]">
-              Phase 2 Main Challenge
+              Speech AI Studio
             </span>
             <span className="text-black/30">•</span>
             <span className="text-[11px] text-stone-600 font-medium">
@@ -137,7 +134,8 @@ export default function App() {
           </div>
 
           <div className="text-[11px] uppercase tracking-widest font-bold text-stone-500 flex items-center space-x-1">
-            <span>Deadline: 15 Sept 2026</span>
+            <span className="text-[#F27D26] font-bold">Intron Sahara-v2</span>
+            <span>&bull; Production Engine</span>
           </div>
         </div>
       </footer>

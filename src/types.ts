@@ -117,23 +117,3 @@ export interface AgenticAction {
     marketPriceInfo: string;
   };
 }
-
-export interface SubmissionDraft {
-  solutionName: string;
-  category: ChallengeCategory;
-  languagePairs: LanguagePair[];
-  problemStatement: string;
-  targetUsers: string;
-  solutionArchitecture: string;
-  keyTechnicalDecisions: string[];
-  demoVideoUrl: string;
-  benchmarkSummary: string;
-  ethicsNote: string;
-  rubricSelfAssessment: {
-    realWorldImpact: { score: number; notes: string };
-    benchmarkQuality: { score: number; notes: string };
-    productQuality: { score: number; notes: string };
-    technicalExecution: { score: number; notes: string };
-    ethicsInclusion: { score: number; notes: string };
-  };
-}

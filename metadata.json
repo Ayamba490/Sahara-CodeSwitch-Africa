@@ -1,6 +1,6 @@
 {
   "name": "Sahara CodeSwitch Africa Challenge Studio",
-  "description": "Interactive multi-model benchmarking studio, code-switching speech agent, and submission packager for the Sahara CodeSwitch Africa Challenge by Intron Health.",
+  "description": "Interactive multi-model speech benchmarking studio, code-switching speech agent, and African voice solutions suite powered by Intron Voice and Sahara ASR.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -32,7 +32,6 @@ import {
   ALL_LANGUAGE_PAIRS,
 } from '../data/benchmarkData';
 import { LanguagePair, BenchmarkAudioSample, CodeSwitchToken } from '../types';
-import { GuidedDemoModal } from './GuidedDemoModal';
 
 interface LiveAgentLabProps {
   hasSaharaKey: boolean;
@@ -47,7 +46,6 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
   const [activeSampleId, setActiveSampleId] = useState<string>('sample-swahili-care-02');
   const [customAudioText, setCustomAudioText] = useState<string>('');
   const [inputMode, setInputMode] = useState<'sample' | 'mic'>('sample');
-  const [isGuidedDemoOpen, setIsGuidedDemoOpen] = useState<boolean>(false);
 
   // Sahara ASR live/calibrated inference state
   const [asrOutput, setAsrOutput] = useState<{
@@ -631,14 +629,6 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setIsGuidedDemoOpen(true)}
-              className="px-4 py-2 bg-[#F27D26] hover:bg-[#d96716] text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-2 border-2 border-black shadow-[3px_3px_0px_0px_black] transition-all"
-            >
-              <Play className="w-3.5 h-3.5 fill-white" />
-              <span>90s Guided Pitch Walkthrough</span>
-            </button>
-
             <span className="text-[10px] font-bold uppercase tracking-widest bg-black text-white px-2.5 py-1.5">
               Sahara-v2.4
             </span>
@@ -652,11 +642,11 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
           The flagship clinical implementation demonstrating why voice AI must not force Africans to choose one language. Experience end-to-end African code-switching across clinical intake (AfriswitchCare), rural health triage, and downstream EHR automation.
         </p>
 
-        {/* Flagship Demonstration Presets */}
+        {/* Clinical Case Scenarios */}
         <div className="pt-2 border-t border-black/10">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#F27D26] mr-1">
-              Flagship Clinical Demos:
+              Clinical Case Scenarios:
             </span>
 
             <button
@@ -1524,12 +1514,6 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
           </div>
         </div>
       </div>
-
-      {/* 90-120s Guided Pitch Walkthrough Modal */}
-      <GuidedDemoModal
-        isOpen={isGuidedDemoOpen}
-        onClose={() => setIsGuidedDemoOpen(false)}
-      />
     </div>
   );
 };
