@@ -24,7 +24,7 @@ export const KeyModal: React.FC<KeyModalProps> = ({
   onSaveKey,
 }) => {
   const [apiKeyInput, setApiKeyInput] = useState<string>(currentKey);
-  const [endpointInput, setEndpointInput] = useState<string>('https://voice.intron.io/api/v1/transcribe');
+  const [endpointInput, setEndpointInput] = useState<string>('https://infer.voice.intron.io/file/v1/upload/sync');
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [isTesting, setIsTesting] = useState<boolean>(false);
   const [testResult, setTestResult] = useState<{
@@ -188,11 +188,11 @@ export const KeyModal: React.FC<KeyModalProps> = ({
                 type="text"
                 value={endpointInput}
                 onChange={(e) => setEndpointInput(e.target.value)}
-                placeholder="https://voice.intron.io/api/v1/transcribe"
+                placeholder="https://infer.voice.intron.io/file/v1/upload/sync"
                 className="w-full bg-white border border-black/20 p-2 text-[11px] text-stone-900 font-mono focus:outline-none focus:border-black"
               />
               <span className="text-[10px] text-stone-500 block">
-                Default: <code className="font-mono">https://voice.intron.io/api/v1/transcribe</code> (auto-fallbacks to <code className="font-mono">speech.intron.health</code>).
+                Official Intron Sync API: <code className="font-mono">https://infer.voice.intron.io/file/v1/upload/sync</code> (multipart/form-data with Bearer token).
               </span>
             </div>
           )}

@@ -51,12 +51,15 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
   const [asrOutput, setAsrOutput] = useState<{
     transcript: string;
     isLiveInference: boolean;
+    inferenceType?: 'LIVE_SAHARA_INFERENCE' | 'DEMO_FALLBACK' | 'REFERENCE_TRANSCRIPT';
+    badge?: string;
     status: string;
     latencyMs: number;
     confidence: number;
     diagnosticMessage?: string;
     provider?: string;
     model?: string;
+    endpointHit?: string;
   } | null>(null);
 
   // Audio recording state
@@ -518,6 +521,21 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
       console.warn('API error, applying intelligent fallback:', e);
       const isSwahili = selectedLanguage === 'Swahili-English';
       const effectiveText = targetText || (inputMode === 'mic' && customAudioText ? customAudioText.trim() : activeSample.groundTruth);
+
+      // Ensure ASR indicator has state
+      setAsrOutput((prev) => prev || {
+        transcript: effectiveText,
+        isLiveInference: false,
+        inferenceType: inputMode === 'sample' ? 'REFERENCE_TRANSCRIPT' : 'DEMO_FALLBACK',
+        badge: inputMode === 'sample' ? '⚪ REFERENCE TRANSCRIPT' : '🟡 DEMO FALLBACK',
+        status: inputMode === 'sample' ? 'reference_sample' : 'demo_fallback',
+        latencyMs: 120,
+        confidence: 0.945,
+        model: 'Sahara-ASR-Africa-v2.4 (Fallback)',
+        provider: 'Intron Demo Engine',
+        diagnosticMessage: 'Reverted cleanly to local code-switch pipeline.',
+      });
+
       const isGreeting = /^(habari|jambo|sannu|bawo|sawubona|hello|hi)/i.test(effectiveText);
 
       if (isGreeting) {
@@ -811,8 +829,21 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
               Engine: <strong className="font-serif italic text-sm text-black">Sahara-ASR-Africa-v2.4</strong>
             </p>
             <p className="text-[10px] text-stone-600 mt-0.5">
-              Live Intron API endpoint: <code className="font-mono bg-white px-1 border border-black/10">POST /api/sahara/transcribe</code>
+              Official Intron Sync API: <code className="font-mono bg-white px-1 border border-black/10">infer.voice.intron.io/file/v1/upload/sync</code>
             </p>
+            <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-black/10 text-[9px] font-mono text-stone-600">
+              <span className="flex items-center gap-1 font-semibold text-emerald-800">
+                <span>🟢</span> Live Sahara
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1 font-semibold text-amber-800">
+                <span>🟡</span> Demo Fallback
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1 font-semibold text-stone-700">
+                <span>⚪</span> Reference Transcript
+              </span>
+            </div>
           </div>
 
           <button
@@ -852,6 +883,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
                       onClick={() => {
                         setActiveSampleId(s.id);
                         setAgentResult(null);
+                        setAsrOutput(null);
                         setIsPlayingAudio(false);
                       }}
                       className={`text-left p-2.5 border text-xs transition-all ${
@@ -1078,16 +1110,32 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
                 </div>
 
                 {asrOutput ? (
-                  <div className="flex items-center space-x-2 font-mono text-[10px]">
-                    <span
-                      className={`px-2 py-0.5 font-bold ${
-                        asrOutput.isLiveInference
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-400'
-                          : 'bg-[#F27D26]/15 text-[#B84E00] border border-[#F27D26]/40'
-                      }`}
-                    >
-                      {asrOutput.isLiveInference ? '● Live Intron Inference' : '● Afriswitch Calibrated Reference'}
-                    </span>
+                  <div className="flex items-center flex-wrap gap-2 font-mono text-[10px]">
+                    {asrOutput.inferenceType === 'LIVE_SAHARA_INFERENCE' || asrOutput.isLiveInference ? (
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 font-bold uppercase tracking-wider bg-emerald-100 text-emerald-950 border border-emerald-500 shadow-sm"
+                        title="Live over-the-wire acoustic decoding via infer.voice.intron.io/file/v1/upload/sync"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>🟢 LIVE SAHARA INFERENCE</span>
+                      </span>
+                    ) : asrOutput.inferenceType === 'DEMO_FALLBACK' ? (
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 font-bold uppercase tracking-wider bg-amber-100 text-amber-950 border border-amber-500 shadow-sm"
+                        title="Deterministic code-switch acoustic model fallback"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        <span>🟡 DEMO FALLBACK</span>
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 font-bold uppercase tracking-wider bg-stone-100 text-stone-900 border border-stone-400 shadow-sm"
+                        title="Empirical ground-truth transcript from the calibrated Afriswitch benchmark dataset"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-stone-400" />
+                        <span>⚪ REFERENCE TRANSCRIPT</span>
+                      </span>
+                    )}
                     <span className="text-stone-600 bg-stone-100 px-1.5 py-0.5 border border-black/10">
                       {asrOutput.latencyMs}ms
                     </span>

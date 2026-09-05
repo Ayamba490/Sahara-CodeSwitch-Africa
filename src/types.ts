@@ -93,6 +93,30 @@ export interface BenchmarkAggregateMetric {
   };
 }
 
+export type InferenceStatusType =
+  | 'LIVE_SAHARA_INFERENCE'
+  | 'DEMO_FALLBACK'
+  | 'REFERENCE_TRANSCRIPT';
+
+export interface SaharaASROutput {
+  status?: string;
+  isLiveInference: boolean;
+  inferenceType: InferenceStatusType;
+  badge: string;
+  executionMode: string;
+  model: string;
+  provider: string;
+  transcript: string;
+  confidence: number;
+  latencyMs: number;
+  languagePair: string;
+  vocabBoostedTerms?: string[];
+  diagnosticMessage?: string;
+  endpointHit?: string;
+  words?: any[];
+  metadata?: Record<string, any>;
+}
+
 export interface AgenticAction {
   actionType: string;
   summary: string;
