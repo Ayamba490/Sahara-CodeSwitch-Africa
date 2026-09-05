@@ -5,6 +5,7 @@ import { BenchmarkSuite } from './components/BenchmarkSuite';
 import { CategorySolutions } from './components/CategorySolutions';
 import { SubmissionPackager } from './components/SubmissionPackager';
 import { SaharaApiDocs } from './components/SaharaApiDocs';
+import { BidirectionalTranslator } from './components/BidirectionalTranslator';
 import { KeyModal } from './components/KeyModal';
 import { ChallengeCategory } from './types';
 import { ExternalLink, Sparkles, Heart } from 'lucide-react';
@@ -52,6 +53,8 @@ export default function App() {
             onOpenKeyModal={() => setIsKeyModalOpen(true)}
           />
         )}
+
+        {activeTab === 'translator' && <BidirectionalTranslator />}
 
         {activeTab === 'benchmark' && <BenchmarkSuite />}
 

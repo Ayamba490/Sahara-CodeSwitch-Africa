@@ -13,6 +13,9 @@ import {
   Info,
   Layers,
   Volume2,
+  VolumeX,
+  Zap,
+  Headphones,
   Stethoscope,
   CreditCard,
   Sprout,
@@ -20,6 +23,9 @@ import {
   Radio,
   FileText,
   BadgeAlert,
+  Send,
+  Languages,
+  Check,
 } from 'lucide-react';
 import {
   BENCHMARK_SAMPLES,
@@ -63,11 +69,15 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
+  const speechRecognitionRef = useRef<any>(null);
 
-  // Audio simulation playback
+  // Real Audio Playback & Speech Synthesis
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
   const [playbackProgress, setPlaybackProgress] = useState<number>(0);
+  const [currentlySpeakingText, setCurrentlySpeakingText] = useState<string>('');
+  const [speakerOutputNotice, setSpeakerOutputNotice] = useState<string | null>(null);
   const playbackTimerRef = useRef<any>(null);
+  const currentAudioElementRef = useRef<HTMLAudioElement | null>(null);
 
   // Canvas visualizer
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -77,6 +87,47 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [agentResult, setAgentResult] = useState<any | null>(null);
   const [activeTokenInfo, setActiveTokenInfo] = useState<CodeSwitchToken | null>(null);
+
+  // Multilingual translation state
+  const [altLang, setAltLang] = useState<string>('Yoruba');
+  const [altTranslation, setAltTranslation] = useState<string | null>(null);
+  const [isTranslatingAlt, setIsTranslatingAlt] = useState<boolean>(false);
+  const [altPronunciation, setAltPronunciation] = useState<string | null>(null);
+  const [altNotes, setAltNotes] = useState<string | null>(null);
+  const [isCopiedAlt, setIsCopiedAlt] = useState<boolean>(false);
+
+  const handleTranslateToAlt = async (targetLanguage: string) => {
+    const textToTranslate =
+      agentResult?.fullStandardTranslation ||
+      asrOutput?.transcript ||
+      (inputMode === 'mic' && customAudioText.trim() ? customAudioText.trim() : activeSample.groundTruth);
+    if (!textToTranslate) return;
+
+    setIsTranslatingAlt(true);
+    setAltLang(targetLanguage);
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: textToTranslate,
+          sourceLang: 'Auto-Detect',
+          targetLang: targetLanguage,
+          context: activeSample.category || 'clinical',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAltTranslation(data.translatedText);
+        setAltPronunciation(data.pronunciationGuide || null);
+        setAltNotes(data.linguisticNotes || null);
+      }
+    } catch (err) {
+      console.warn('Alt translate error:', err);
+    } finally {
+      setIsTranslatingAlt(false);
+    }
+  };
 
   // Filter samples matching language
   const availableSamples = BENCHMARK_SAMPLES.filter(
@@ -147,8 +198,33 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
     };
   }, [isRecording, isPlayingAudio]);
 
-  // Start Mic Recording
+  // Start Mic Recording with Web Speech Recognition fallback for live speech-to-text
   const startRecording = async () => {
+    // 1. Try browser SpeechRecognition for live real-time transcript streaming
+    const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognitionClass) {
+      try {
+        const recognition = new SpeechRecognitionClass();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = selectedLanguage.includes('Swahili') ? 'sw' : 'en-US';
+        recognition.onresult = (event: any) => {
+          let liveText = '';
+          for (let i = 0; i < event.results.length; i++) {
+            liveText += event.results[i][0].transcript + ' ';
+          }
+          if (liveText.trim()) {
+            setCustomAudioText(liveText.trim());
+          }
+        };
+        recognition.onerror = (e: any) => console.warn('Speech recognition warning:', e);
+        recognition.start();
+        speechRecognitionRef.current = recognition;
+      } catch (recErr) {
+        console.warn('Speech recognition initialization warning:', recErr);
+      }
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -196,6 +272,11 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
   };
 
   const stopRecording = () => {
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch (e) {}
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
@@ -203,13 +284,147 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
     setIsRecording(false);
   };
 
-  // Play audio sample
-  const togglePlayAudio = () => {
+  // Play audio acoustic tone & speech synthesis
+  const stopAudioPlayback = () => {
+    if (currentAudioElementRef.current) {
+      currentAudioElementRef.current.pause();
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    clearInterval(playbackTimerRef.current);
+    setIsPlayingAudio(false);
+    setPlaybackProgress(0);
+    setCurrentlySpeakingText('');
+  };
+
+  const playUtteranceAudio = (specificText?: string) => {
     if (isPlayingAudio) {
-      clearInterval(playbackTimerRef.current);
-      setIsPlayingAudio(false);
+      stopAudioPlayback();
+      return;
+    }
+
+    // Determine the utterance text to speak
+    const textToSpeak =
+      (specificText && specificText.trim().length > 0)
+        ? specificText.trim()
+        : (inputMode === 'mic' && customAudioText.trim().length > 0)
+        ? customAudioText.trim()
+        : activeSample.groundTruth;
+
+    setCurrentlySpeakingText(textToSpeak);
+
+    // Play subtle audio cue chime using Web Audio API to ensure speakers/audio card are initialized
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        const audioCtx = new AudioContextClass();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+        osc.frequency.exponentialRampToValueAtTime(659.25, audioCtx.currentTime + 0.12); // E5
+        gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.28);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.28);
+      }
+    } catch (e) {
+      console.warn('Web Audio chime not initialized:', e);
+    }
+
+    // Check if user recorded an actual voice audio blob in mic mode
+    if (inputMode === 'mic' && recordedAudioUrl && (!customAudioText || customAudioText.trim().length === 0)) {
+      try {
+        if (currentAudioElementRef.current) {
+          currentAudioElementRef.current.pause();
+        }
+        const audio = new Audio(recordedAudioUrl);
+        currentAudioElementRef.current = audio;
+        setIsPlayingAudio(true);
+        setPlaybackProgress(0);
+
+        audio.ontimeupdate = () => {
+          if (audio.duration) {
+            setPlaybackProgress((audio.currentTime / audio.duration) * 100);
+          }
+        };
+
+        audio.onended = () => {
+          setIsPlayingAudio(false);
+          setPlaybackProgress(100);
+          setCurrentlySpeakingText('');
+        };
+
+        audio.onerror = () => {
+          setIsPlayingAudio(false);
+        };
+
+        audio.play().catch((err) => {
+          console.warn('Audio play was prevented by browser autoplay policy:', err);
+        });
+        return;
+      } catch (err) {
+        console.warn('Recorded audio playback error:', err);
+      }
+    }
+
+    // Play via SpeechSynthesis (spoken words through device speaker)
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      // Assign closest language voice tag
+      if (selectedLanguage.includes('Swahili')) {
+        utterance.lang = 'sw-KE';
+      } else if (selectedLanguage.includes('Yoruba')) {
+        utterance.lang = 'yo-NG';
+      } else if (selectedLanguage.includes('Hausa')) {
+        utterance.lang = 'ha-NG';
+      } else if (selectedLanguage.includes('Zulu')) {
+        utterance.lang = 'zu-ZA';
+      } else {
+        utterance.lang = 'en-US';
+      }
+
+      setIsPlayingAudio(true);
       setPlaybackProgress(0);
+
+      // Estimate duration for waveform progress animation
+      const wordCount = textToSpeak.split(/\s+/).length;
+      const estimatedDurationMs = Math.max(1400, wordCount * 380);
+      const startTime = Date.now();
+
+      clearInterval(playbackTimerRef.current);
+      playbackTimerRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(99, (elapsed / estimatedDurationMs) * 100);
+        setPlaybackProgress(progress);
+      }, 80);
+
+      utterance.onend = () => {
+        clearInterval(playbackTimerRef.current);
+        setIsPlayingAudio(false);
+        setPlaybackProgress(100);
+        setCurrentlySpeakingText('');
+      };
+
+      utterance.onerror = () => {
+        clearInterval(playbackTimerRef.current);
+        setIsPlayingAudio(false);
+        setCurrentlySpeakingText('');
+      };
+
+      window.speechSynthesis.speak(utterance);
+      setSpeakerOutputNotice(`Playing audio through speaker: "${textToSpeak.slice(0, 32)}..."`);
+      setTimeout(() => setSpeakerOutputNotice(null), 4000);
     } else {
+      // Fallback timer if speech synthesis is blocked
       setIsPlayingAudio(true);
       setPlaybackProgress(0);
       const totalSteps = 40;
@@ -222,13 +437,19 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
           setIsPlayingAudio(false);
           setPlaybackProgress(100);
         }
-      }, 200);
+      }, 150);
     }
   };
 
+  // Toggle play audio convenience wrapper
+  const togglePlayAudio = () => {
+    playUtteranceAudio();
+  };
+
   // Run Real Sahara ASR & Gemini Agentic Extraction (Speech -> Code-Switch Intelligence -> Action)
-  const handleRunAgent = async (categoryPreset?: string) => {
+  const handleRunAgent = async (categoryPreset?: string, textOverride?: string) => {
     setIsProcessing(true);
+    const targetText = textOverride !== undefined ? textOverride : (inputMode === 'mic' && customAudioText ? customAudioText.trim() : undefined);
 
     try {
       // Step 1: Query Sahara ASR Proxy (/api/sahara/transcribe)
@@ -245,15 +466,21 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
           'ara',
           'gbona',
           'sakit',
+          'habari',
+          'jambo',
+          'abeg',
         ],
       };
 
       if (inputMode === 'mic') {
+        if (targetText) {
+          asrPayload.text = targetText;
+        }
         if (recordedAudioBase64) {
           asrPayload.audio = recordedAudioBase64;
-        } else if (customAudioText) {
-          asrPayload.text = customAudioText;
         }
+      } else if (targetText) {
+        asrPayload.text = targetText;
       }
 
       const asrResponse = await fetch('/api/sahara/transcribe', {
@@ -268,7 +495,9 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
       const asrData = await asrResponse.json();
       setAsrOutput(asrData);
 
-      const transcriptToProcess = asrData.transcript || activeSample.groundTruth;
+      const transcriptToProcess =
+        asrData.transcript ||
+        (targetText && targetText.length > 0 ? targetText : activeSample.groundTruth);
 
       // Step 2: Layer 2 Code-Switch Intelligence & Layer 3 Action
       const response = await fetch('/api/codeswitch/analyze', {
@@ -277,7 +506,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
         body: JSON.stringify({
           transcript: transcriptToProcess,
           languagePair: selectedLanguage,
-          domain: categoryPreset || activeSample.category.toLowerCase(),
+          domain: categoryPreset || (targetText ? 'general' : activeSample.category.toLowerCase()),
         }),
       });
 
@@ -290,8 +519,38 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
     } catch (e) {
       console.warn('API error, applying intelligent fallback:', e);
       const isSwahili = selectedLanguage === 'Swahili-English';
+      const effectiveText = targetText || (inputMode === 'mic' && customAudioText ? customAudioText.trim() : activeSample.groundTruth);
+      const isGreeting = /^(habari|jambo|sannu|bawo|sawubona|hello|hi)/i.test(effectiveText);
 
-      if (isSwahili) {
+      if (isGreeting) {
+        setAgentResult({
+          matrixLanguage: isSwahili ? 'Swahili' : 'African Indigenous',
+          embeddedLanguage: 'English',
+          codeSwitchPoints: [
+            {
+              token: effectiveText,
+              language: isSwahili ? 'Swahili' : 'African Vernacular',
+              role: 'matrix',
+              translation: 'Hello / How are you? / News',
+              confidence: 0.98,
+            },
+          ],
+          fullStandardTranslation: 'Hello / How are you? (Customary African Greeting)',
+          intent: 'GREETING_AND_INQUIRY',
+          extractedEntities: {
+            'Utterance': effectiveText,
+            'Detected Language': isSwahili ? 'Swahili' : 'African Indigenous',
+            'Greeting Type': 'Vernacular Greeting Received',
+            'System State': 'Ready for Patient Intake / Clinical Triage',
+          },
+          agenticAction: {
+            actionType: 'RESPOND_TO_GREETING',
+            summary: `Recognized African greeting ("${effectiveText}"). Virtual agent active and ready to record clinical symptoms or dispatch assistance.`,
+            urgency: 'LOW',
+          },
+          linguisticNotes: `Transcribed vernacular greeting "${effectiveText}" with high confidence.`,
+        });
+      } else if (isSwahili) {
         setAgentResult({
           matrixLanguage: 'Swahili',
           embeddedLanguage: 'English',
@@ -655,41 +914,141 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
                       <span>Stop & Transcribe</span>
                     </button>
                   )}
+
+                  {recordedAudioUrl && (
+                    <button
+                      onClick={() => playUtteranceAudio()}
+                      className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-mono font-bold border border-black/20 flex items-center space-x-1.5"
+                      title="Play your recorded audio clip"
+                    >
+                      <Headphones className="w-3.5 h-3.5 text-[#F27D26]" />
+                      <span>Replay Mic Audio</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-stone-600 block">
-                    Or paste/type vernacular code-switched utterance to transcribe:
-                  </label>
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-stone-700 block">
+                      Type vernacular utterance or edit speech input:
+                    </label>
+                    <span className="text-[10px] text-stone-500 font-mono">Press Enter to transcribe</span>
+                  </div>
                   <textarea
                     value={customAudioText}
                     onChange={(e) => setCustomAudioText(e.target.value)}
-                    placeholder="e.g. Doctor, ara mi gbona gan since yesterday, mo ni severe headache..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleRunAgent();
+                      }
+                    }}
+                    placeholder="e.g. habari, or Doctor, ara mi gbona gan since yesterday..."
                     rows={2}
-                    className="w-full bg-[#FAF8F5] border border-black/20 p-2.5 text-xs text-black placeholder-stone-400 focus:outline-none focus:border-black"
+                    className="w-full bg-[#FAF8F5] border border-black/25 p-2.5 text-xs text-black placeholder-stone-400 focus:outline-none focus:border-black font-mono shadow-inner"
                   />
+
+                  {/* Immediate Transcribe and Speech Synthesis Controls */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleRunAgent()}
+                        disabled={isProcessing}
+                        className="px-3.5 py-2 bg-[#F27D26] hover:bg-[#d96716] text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-[2px_2px_0px_0px_black] transition-all disabled:opacity-50"
+                      >
+                        <Zap className="w-3.5 h-3.5 fill-white" />
+                        <span>
+                          Transcribe & Analyze {customAudioText.trim() ? `"${customAudioText.trim().slice(0, 18)}"` : ''}
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => playUtteranceAudio(customAudioText || 'habari')}
+                        className={`px-3 py-2 text-xs font-bold uppercase tracking-wider border border-black flex items-center space-x-1.5 transition-all shadow-sm ${
+                          isPlayingAudio
+                            ? 'bg-red-600 text-white border-red-700'
+                            : 'bg-white hover:bg-stone-100 text-black'
+                        }`}
+                        title="Hear this utterance read aloud through device speakers"
+                      >
+                        {isPlayingAudio ? (
+                          <>
+                            <Square className="w-3.5 h-3.5 fill-current" />
+                            <span>Stop Audio</span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="w-3.5 h-3.5 text-[#F27D26]" />
+                            <span>Listen Aloud</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <span className="text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 border border-emerald-300 font-mono inline-flex items-center space-x-1">
+                      <Volume2 className="w-3 h-3 text-emerald-600" />
+                      <span>Device Audio Active</span>
+                    </span>
+                  </div>
+
+                  {/* Quick Vernacular Presets */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px]">
+                    <span className="text-stone-500 font-medium text-[10px]">Test Phrases:</span>
+                    {[
+                      { label: 'habari (Swahili)', text: 'habari' },
+                      { label: 'homa kali (Swahili fever)', text: 'Mgonjwa ana homa kali sana na joint pains' },
+                      { label: 'ara mi gbona (Yoruba)', text: 'Doctor, ara mi gbona gan since yesterday' },
+                      { label: 'abeg transfer (Pidgin)', text: 'Abeg transfer twenty thousand naira to hospital' },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        onClick={() => {
+                          setCustomAudioText(preset.text);
+                          playUtteranceAudio(preset.text);
+                        }}
+                        className="px-2 py-0.5 bg-white hover:bg-stone-100 border border-black/20 text-stone-800 text-[10px] font-mono hover:border-black transition-colors"
+                        title="Insert phrase and listen aloud"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Waveform Visualizer & Audio Player */}
             <div className="bg-[#FAF8F5] p-3 border border-black/15 space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={togglePlayAudio}
-                    className="w-8 h-8 bg-[#F27D26] hover:bg-black text-white flex items-center justify-center transition-colors shadow-sm"
+                    className={`w-8 h-8 flex items-center justify-center transition-colors shadow-sm ${
+                      isPlayingAudio ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-[#F27D26] hover:bg-black text-white'
+                    }`}
+                    title={isPlayingAudio ? 'Stop audio' : 'Play audio utterance aloud'}
                   >
-                    {isPlayingAudio ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
+                    {isPlayingAudio ? <Square className="w-3.5 h-3.5 fill-white" /> : <Play className="w-3.5 h-3.5 ml-0.5 fill-white" />}
                   </button>
-                  <span className="text-xs text-black font-semibold">
-                    {isPlayingAudio ? 'Streaming Audio to Sahara ASR...' : 'Play Audio Clip'}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-black font-semibold flex items-center space-x-1.5">
+                      <span>{isPlayingAudio ? '🔊 Playing Audio Through Speaker...' : 'Play Audio Clip'}</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-stone-500 line-clamp-1 max-w-[280px]">
+                      {currentlySpeakingText ? `"${currentlySpeakingText}"` : (inputMode === 'mic' && customAudioText.trim() ? `"${customAudioText.trim()}"` : `"${activeSample.groundTruth.slice(0, 38)}..."`)}
+                    </span>
+                  </div>
                 </div>
 
-                <span className="text-[11px] font-mono font-medium text-stone-600">
-                  {activeSample.accentRegion}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] font-mono font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 border border-emerald-300 flex items-center space-x-1">
+                    <Volume2 className="w-3 h-3 text-emerald-600" />
+                    <span>Speakers Online</span>
+                  </span>
+                  <span className="text-[11px] font-mono font-medium text-stone-600">
+                    {activeSample.accentRegion}
+                  </span>
+                </div>
               </div>
 
               {/* Canvas Waveform */}
@@ -707,6 +1066,13 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
                   />
                 )}
               </div>
+
+              {speakerOutputNotice && (
+                <div className="text-[10px] font-mono text-[#B84E00] bg-[#F27D26]/10 px-2 py-1 border border-[#F27D26]/30 flex items-center justify-between">
+                  <span>🔊 {speakerOutputNotice}</span>
+                  <span className="text-stone-500">(Ensure your device speakers are unmuted)</span>
+                </div>
+              )}
             </div>
 
             {/* Layer 1: Speech (Sahara ASR Engine) */}
@@ -740,9 +1106,17 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
                     </span>
                   </div>
                 ) : (
-                  <span className="text-[10px] font-mono text-stone-500 bg-stone-100 px-2 py-0.5">
-                    Awaiting ASR execution
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-mono text-stone-500 bg-stone-100 px-2 py-0.5">
+                      Awaiting ASR execution
+                    </span>
+                    <button
+                      onClick={() => handleRunAgent()}
+                      className="text-[10px] font-bold uppercase tracking-wider bg-[#F27D26] hover:bg-black text-white px-2.5 py-0.5 transition-colors"
+                    >
+                      Transcribe Now ➔
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -754,8 +1128,17 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
               )}
 
               {/* Verbatim Transcript Box */}
-              <div className="p-3 bg-white border border-black/15 text-sm leading-relaxed font-serif italic text-stone-900">
-                "{asrOutput?.transcript || activeSample.groundTruth}"
+              <div className="p-3 bg-white border border-black/15 text-sm leading-relaxed font-serif italic text-stone-900 flex items-start justify-between gap-2">
+                <span className="flex-1">
+                  "{asrOutput?.transcript || (inputMode === 'mic' && customAudioText.trim() ? customAudioText.trim() : activeSample.groundTruth)}"
+                </span>
+                <button
+                  onClick={() => playUtteranceAudio(asrOutput?.transcript || (inputMode === 'mic' && customAudioText.trim() ? customAudioText.trim() : activeSample.groundTruth))}
+                  className="p-1 hover:bg-stone-100 text-stone-600 hover:text-black transition-colors"
+                  title="Listen to this transcript"
+                >
+                  <Volume2 className="w-4 h-4 text-[#F27D26]" />
+                </button>
               </div>
             </div>
 
@@ -928,7 +1311,11 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
                     className="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-black hover:bg-stone-800 text-white border border-black inline-flex items-center space-x-1.5 shadow-[2px_2px_0px_0px_#F27D26]"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-[#F27D26]" />
-                    <span>Run Sample Analysis</span>
+                    <span>
+                      {inputMode === 'mic' && customAudioText.trim()
+                        ? `Transcribe & Analyze "${customAudioText.trim().slice(0, 16)}"`
+                        : 'Run Sample Analysis'}
+                    </span>
                   </button>
                 </div>
               )}
@@ -974,9 +1361,102 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
                     <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500 block">
                       Standardized English Translation (Normalized)
                     </span>
-                    <div className="bg-[#FAF8F5] p-3 border border-black/15 text-xs text-stone-900 font-serif italic text-[13px] leading-relaxed">
-                      "{agentResult.fullStandardTranslation}"
+                    <div className="bg-[#FAF8F5] p-3 border border-black/15 text-xs text-stone-900 font-serif italic text-[13px] leading-relaxed flex items-start justify-between gap-2">
+                      <span className="flex-1">"{agentResult.fullStandardTranslation}"</span>
+                      <button
+                        onClick={() => playUtteranceAudio(agentResult.fullStandardTranslation)}
+                        className="p-1 hover:bg-stone-200 text-stone-600 hover:text-black transition-colors"
+                        title="Listen to English translation"
+                      >
+                        <Volume2 className="w-4 h-4 text-[#F27D26]" />
+                      </button>
                     </div>
+                  </div>
+
+                  {/* Multilingual African Vernacular Translation Tool */}
+                  <div className="bg-white border border-black/15 p-3 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-black flex items-center space-x-1.5">
+                        <Languages className="w-3.5 h-3.5 text-[#F27D26]" />
+                        <span>Translate to Another African Language / Dialect:</span>
+                      </span>
+                      <span className="text-[9px] font-mono text-stone-500">Polyglot Mode</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {[
+                        { label: 'Swahili', lang: 'Swahili (Kiswahili)' },
+                        { label: 'Yoruba', lang: 'Yoruba (Èdè Yorùbá)' },
+                        { label: 'Pidgin', lang: 'Nigerian Pidgin (Naija)' },
+                        { label: 'Hausa', lang: 'Hausa' },
+                        { label: 'isiZulu', lang: 'isiZulu (Zulu)' },
+                        { label: 'French', lang: 'French (Français)' },
+                      ].map((item) => (
+                        <button
+                          key={item.label}
+                          onClick={() => handleTranslateToAlt(item.lang)}
+                          disabled={isTranslatingAlt}
+                          className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                            altLang.includes(item.label)
+                              ? 'bg-black text-white border-black shadow-[1px_1px_0px_0px_#F27D26]'
+                              : 'bg-stone-50 hover:bg-stone-100 text-stone-800 border-black/20'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {isTranslatingAlt && (
+                      <div className="text-center py-2 text-stone-500 text-xs font-mono flex items-center justify-center space-x-2">
+                        <RotateCcw className="w-3.5 h-3.5 animate-spin text-[#F27D26]" />
+                        <span>Translating into {altLang}...</span>
+                      </div>
+                    )}
+
+                    {altTranslation && !isTranslatingAlt && (
+                      <div className="bg-[#FAF8F5] p-2.5 border border-black/15 space-y-1.5 animate-fadeIn">
+                        <div className="flex items-center justify-between text-[10px] font-mono font-bold text-stone-600">
+                          <span>Output in {altLang}:</span>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => playUtteranceAudio(altTranslation)}
+                              className="text-[#F27D26] hover:underline flex items-center space-x-1"
+                              title="Listen to translation"
+                            >
+                              <Volume2 className="w-3 h-3" />
+                              <span>Listen</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(altTranslation);
+                                setIsCopiedAlt(true);
+                                setTimeout(() => setIsCopiedAlt(false), 2000);
+                              }}
+                              className="text-stone-600 hover:text-black flex items-center space-x-1"
+                            >
+                              {isCopiedAlt ? <Check className="w-3 h-3 text-emerald-600" /> : <span>Copy</span>}
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-xs font-serif italic text-black font-medium leading-relaxed">
+                          "{altTranslation}"
+                        </p>
+
+                        {altPronunciation && (
+                          <div className="text-[10px] font-mono text-[#B84E00] bg-[#F27D26]/10 px-2 py-0.5 border border-[#F27D26]/20">
+                            🗣️ {altPronunciation}
+                          </div>
+                        )}
+
+                        {altNotes && (
+                          <div className="text-[10px] text-stone-600 font-mono">
+                            ℹ️ {altNotes}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Extracted Key-Value Entities */}

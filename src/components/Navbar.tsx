@@ -10,6 +10,7 @@ import {
   KeyRound,
   ExternalLink,
   ShieldCheck,
+  Languages,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -55,6 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navItems = [
     { id: 'live-lab', label: 'Live Speech Lab', icon: Mic, badge: 'Sahara ASR' },
+    { id: 'translator', label: 'Bidirectional Translator', icon: Languages, badge: 'English ⇄ African' },
     { id: 'benchmark', label: '3+ Model Benchmark', icon: BarChart3, badge: '30% Weight' },
     { id: 'categories', label: 'Solutions & Agents', icon: Layers, badge: 'AfriswitchCare' },
     { id: 'submission', label: 'Submission Packager', icon: FileCheck, badge: 'Rubric 100%' },
