@@ -293,6 +293,7 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
     const { text, languagePair, audio, audioFormat, customVocab, sampleId, endpointUrl } = req.body;
     const saharaApiKey =
       process.env.SAHARA_API_KEY ||
+      process.env.INTRON_API_KEY ||
       (req.headers['x-sahara-api-key'] as string) ||
       req.body.apiKey;
 
@@ -391,22 +392,9 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
         const mimeType = formatLower === 'wav' ? 'audio/wav' : 'audio/webm';
         const fileExt = formatLower === 'wav' ? 'wav' : 'webm';
 
-        const syncFormData = new FormData();
-        const audioBlob = new Blob([audioBuffer], { type: mimeType });
-        syncFormData.append('file', audioBlob, `recording.${fileExt}`);
-        syncFormData.append('language', languagePair || 'Swahili-English');
-        syncFormData.append('language_pair', languagePair || 'Swahili-English');
-        syncFormData.append('language_code', languagePair || 'Swahili-English');
-        if (Array.isArray(customVocab) && customVocab.length > 0) {
-          syncFormData.append('custom_vocabulary', JSON.stringify(customVocab));
-        }
-        syncFormData.append('enable_code_switching', 'true');
-
         const endpointsToTry = [
           customEndpoint,
           officialIntronSyncEndpoint,
-          'https://infer.voice.intron.io/file/v1/upload',
-          'https://voice.intron.io/api/v1/transcribe',
         ].filter(Boolean) as string[];
 
         // Deduplicate while preserving priority
@@ -419,7 +407,21 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
         for (const endpoint of uniqueEndpoints) {
           try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+            // Fresh FormData instance per attempt to prevent consumed stream issues
+            const syncFormData = new FormData();
+            const audioBlob = new Blob([audioBuffer], { type: mimeType });
+            syncFormData.append('audio_file_blob', audioBlob, `recording.${fileExt}`);
+            syncFormData.append('file', audioBlob, `recording.${fileExt}`);
+            syncFormData.append('audio_file_name', `recording.${fileExt}`);
+            syncFormData.append('language', languagePair || 'Swahili-English');
+            syncFormData.append('language_pair', languagePair || 'Swahili-English');
+            syncFormData.append('language_code', languagePair || 'Swahili-English');
+            if (Array.isArray(customVocab) && customVocab.length > 0) {
+              syncFormData.append('custom_vocabulary', JSON.stringify(customVocab));
+            }
+            syncFormData.append('enable_code_switching', 'true');
 
             // Send multipart/form-data with Bearer authorization
             const apiRes = await fetch(endpoint, {
@@ -427,7 +429,7 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
               headers: {
                 Authorization: `Bearer ${saharaApiKey.trim()}`,
                 'x-api-key': saharaApiKey.trim(),
-                // Note: Do NOT set Content-Type header so fetch calculates the multipart boundary
+                // Note: Do NOT set Content-Type header so fetch automatically calculates the multipart boundary
               },
               body: syncFormData,
               signal: controller.signal,
@@ -443,6 +445,13 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
             } else {
               lastErrorText = await apiRes.text();
               console.warn(`[Sahara API] Endpoint ${endpoint} returned HTTP ${apiRes.status}:`, lastErrorText);
+              
+              // If the official endpoint explicitly responded with 401 or 403 (e.g. invalid key or unauthenticated),
+              // do NOT fallback to other endpoints.
+              if (apiRes.status === 401 || apiRes.status === 403) {
+                lastStatus = apiRes.status;
+                break;
+              }
             }
           } catch (netErr: any) {
             console.warn(`[Sahara API] Network attempt to ${endpoint} failed:`, netErr?.message);

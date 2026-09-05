@@ -168,18 +168,18 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
     modelTranscripts: {
       sahara: {
         transcript:
-          'Doctor, ara mi gbona gan since yesterday, mo ni severe headache ati body weakness, even paracetamol o work rara.',
-        wer: 0.0,
-        cer: 0.0,
-        codeSwitchAcc: 100.0,
+          'Doctor, ara mi gbona gan since yesterday, mo ni severe headache ati body weakness, even paracetamol ko work rara.',
+        wer: 5.3,
+        cer: 1.1,
+        codeSwitchAcc: 94.7,
         latencyMs: 310,
-        notes: 'Flawless transcription of both Yoruba lexical elements ("ara mi gbona gan", "ati", "rara") and English clinical terms.',
+        notes: 'High-accuracy code-switch preservation of Yoruba idioms and English clinical terms, with Southwestern Yoruba dialectal negation ("ko" for "o").',
       },
       'whisper-v3': {
         transcript:
           'Doctor, are me gonna gone since yesterday, money severe headache at body weakness, even paracetamol or work radar.',
         wer: 47.4,
-        cer: 23.1,
+        cer: 13.3,
         codeSwitchAcc: 37.5,
         latencyMs: 1380,
         hallucinatedPhrases: ['are me gonna gone', 'money severe headache', 'work radar'],
@@ -189,7 +189,7 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
         transcript:
           'Doctor, ara mi gbona gan since yesterday, mo ni severe headache and body weakness, even paracetamol did not work rara.',
         wer: 15.8,
-        cer: 8.2,
+        cer: 7.8,
         codeSwitchAcc: 75.0,
         latencyMs: 650,
         notes: 'Preserved primary Yoruba phrases but translated "ati" to "and" and "o work" to "did not work", distorting verbatim code-switching evaluation.',
@@ -198,7 +198,7 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
         transcript:
           'dokta ara mi gbona gan sins yestade mo ni seve hedik ati bodi wiknes ivin parasetamol o wok rara',
         wer: 52.6,
-        cer: 26.8,
+        cer: 26.7,
         codeSwitchAcc: 50.0,
         latencyMs: 840,
         notes: 'Phonemic transcription with lack of orthographic punctuation, casing, and standard English medical spelling.',
@@ -240,18 +240,18 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
     modelTranscripts: {
       sahara: {
         transcript:
-          'Mgonjwa ana homa kali sana na joint pains, tulimpatia artemether lakini bado anatapika non-stop since asubuhi.',
-        wer: 0.0,
-        cer: 0.0,
-        codeSwitchAcc: 100.0,
+          'Mgonjwa ana homa kali sana na joint pains, tulimpa artemether lakini bado anatapika non-stop since asubuhi.',
+        wer: 5.9,
+        cer: 3.3,
+        codeSwitchAcc: 94.1,
         latencyMs: 330,
-        notes: 'Recognized antimalarial drug name "artemether" and Swahili agglutinative verbs "tulimpatia" and "anatapika".',
+        notes: 'Recognized antimalarial drug name "artemether" and Swahili verb root with standard colloquial elision ("tulimpa" for "tulimpatia").',
       },
       'whisper-v3': {
         transcript:
           'Mgonjwa anahomakalisana na joint pains, tuli mpatia art emitter lakini bado anata pika nonstop since asubuhi.',
-        wer: 37.5,
-        cer: 14.5,
+        wer: 64.7,
+        cer: 2.2,
         codeSwitchAcc: 62.5,
         latencyMs: 1440,
         hallucinatedPhrases: ['art emitter', 'tuli mpatia', 'anata pika'],
@@ -259,18 +259,18 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
       },
       'google-chirp': {
         transcript:
-          'Mgonjwa ana homa kali sana na joint pains tulimpatia artemether lakini bado anatapika nonstop since asubuhi.',
-        wer: 12.5,
-        cer: 4.8,
-        codeSwitchAcc: 87.5,
+          'Mgonjwa ana homa kali sana na joint pains, tulimpatia artemether lakini bado anatapika non-stop tangu asubuhi.',
+        wer: 5.9,
+        cer: 4.3,
+        codeSwitchAcc: 88.2,
         latencyMs: 690,
-        notes: 'Strong recognition of Swahili tokens, minor punctuation and hyphenation omission.',
+        notes: 'Strong recognition of Swahili tokens with native preposition substitution ("tangu" for "since").',
       },
       'meta-mms': {
         transcript:
           'mgonjwa ana homa kali sana na joyint pens tulimpatia artemeter lakini bado anatapika nonstop sins asubuhi',
-        wer: 31.2,
-        cer: 12.0,
+        wer: 35.3,
+        cer: 6.5,
         codeSwitchAcc: 62.5,
         latencyMs: 910,
         notes: 'Spelled English words phonetically ("joyint pens", "sins") due to unified acoustic decoding.',
@@ -315,18 +315,18 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
     modelTranscripts: {
       sahara: {
         transcript:
-          'Abeg transfer twenty thousand naira to my brother account, e dey urgent for hospital bills before dem discharge am.',
-        wer: 0.0,
-        cer: 0.0,
-        codeSwitchAcc: 100.0,
+          'Abeg transfer 20000 naira to my brother account, e dey urgent for hospital bills before dem discharge am.',
+        wer: 10.5,
+        cer: 14.7,
+        codeSwitchAcc: 94.4,
         latencyMs: 295,
-        notes: 'Accurate Pidgin particles preserved ("Abeg", "e dey", "dem discharge am") without semantic degradation.',
+        notes: 'Accurate Pidgin particles preserved ("Abeg", "e dey", "dem discharge am") with standard numeral inverse text normalization ("20000").',
       },
       'whisper-v3': {
         transcript:
           'I beg transfer 20,000 naira to my brother account, it is urgent for hospital bills before they discharge him.',
-        wer: 31.6,
-        cer: 15.2,
+        wer: 42.1,
+        cer: 25.3,
         codeSwitchAcc: 40.0,
         latencyMs: 1290,
         notes: 'Over-normalized / normalized away Nigerian Pidgin syntax into standard British English ("I beg", "it is", "they discharge him"), failing code-switching fidelity.',
@@ -334,8 +334,8 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
       'google-chirp': {
         transcript:
           'Abeg transfer twenty thousand naira to my brother account e dey urgent for hospital bills before them discharge am.',
-        wer: 10.5,
-        cer: 4.1,
+        wer: 5.3,
+        cer: 2.1,
         codeSwitchAcc: 80.0,
         latencyMs: 640,
         notes: 'Substituted "them" for "dem", otherwise captured Pidgin syntax reasonably.',
@@ -343,8 +343,8 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
       'meta-mms': {
         transcript:
           'abeg transfa twenti tawzand naira tu mai broda akaunt i de ojent fo ospital bils bifo dem dischaj am',
-        wer: 57.9,
-        cer: 25.3,
+        wer: 78.9,
+        cer: 32.6,
         codeSwitchAcc: 40.0,
         latencyMs: 820,
         notes: 'Severe acoustic spelling breakdown on standard financial vocabulary.',
@@ -390,18 +390,18 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
     modelTranscripts: {
       sahara: {
         transcript:
-          'Ina son in yi reporting na transformer da ya lalace a community mu, wutar lantarki ta dade ba ta aiki.',
-        wer: 0.0,
-        cer: 0.0,
-        codeSwitchAcc: 100.0,
+          'Ina so in yi reporting na transformer da ya lalace a community mu, wutar lantarki ta dade ba ta aiki.',
+        wer: 5.0,
+        cer: 1.2,
+        codeSwitchAcc: 95.0,
         latencyMs: 315,
-        notes: 'High tonal and gemination accuracy on Hausa roots ("lalace", "wutar lantarki", "dade") with English insertions intact.',
+        notes: 'High tonal and gemination accuracy on Hausa roots ("lalace", "wutar lantarki", "dade") with English insertions intact, exhibiting standard spoken reduction ("so" for "son").',
       },
       'whisper-v3': {
         transcript:
           'In a song in you reporting the transformer the elder latte in community more with the lamp turkey today better IQ.',
-        wer: 70.0,
-        cer: 41.2,
+        wer: 85.0,
+        cer: 48.1,
         codeSwitchAcc: 20.0,
         latencyMs: 1410,
         hallucinatedPhrases: ['In a song', 'lamp turkey', 'better IQ'],
@@ -409,18 +409,18 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
       },
       'google-chirp': {
         transcript:
-          'Ina son in yi reporting na transformer da ya lalace a community mu wutar lantarki ta dade ba ta aiki.',
+          'Ina son in yi report na transformer da ya lalace a community mu wutar lantarki ta dade ba ta aiki.',
         wer: 5.0,
-        cer: 2.1,
+        cer: 3.7,
         codeSwitchAcc: 90.0,
         latencyMs: 670,
-        notes: 'Strong performance on Hausa-English, only missed commas.',
+        notes: 'Strong performance on Hausa-English, substituted "report" for "reporting".',
       },
       'meta-mms': {
         transcript:
           'ina son in yi ripotin na transfoma da ya lalase a komyuniti mu wutar lantarki ta dade ba ta aiki',
-        wer: 25.0,
-        cer: 11.4,
+        wer: 20.0,
+        cer: 12.3,
         codeSwitchAcc: 70.0,
         latencyMs: 880,
         notes: 'Re-spelled English words into Hausa-like orthography ("ripotin", "komyuniti", "transfoma").',
@@ -462,18 +462,18 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
     modelTranscripts: {
       sahara: {
         transcript:
-          "Ebirime byange eby'ebijanjaalo birina amabala amamyufu ku makoola, what chemical spray can treat this bean rust?",
-        wer: 0.0,
-        cer: 0.0,
-        codeSwitchAcc: 100.0,
+          "Ebirime byange eby'ebijanjaalo birina amabala amamyufu ku makola, what chemical spray can treat this bean rust?",
+        wer: 6.3,
+        cer: 1.1,
+        codeSwitchAcc: 93.8,
         latencyMs: 340,
-        notes: 'Flawless identification of complex Luganda noun classes and technical agronomy query.',
+        notes: 'High-accuracy identification of complex Luganda noun classes and agricultural spray query, with single-vowel spelling variant ("makola" for "makoola").',
       },
       'whisper-v3': {
         transcript:
           'Every may be young gay, every Django areina Mabala mom you fool come my caller, what chemical spray can treat this bean rust?',
-        wer: 56.2,
-        cer: 32.5,
+        wer: 93.8,
+        cer: 41.1,
         codeSwitchAcc: 50.0,
         latencyMs: 1470,
         hallucinatedPhrases: ['Every may be young gay', 'mom you fool come my caller'],
@@ -481,18 +481,18 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
       },
       'google-chirp': {
         transcript:
-          "Ebirime byange eby'ebijanjaalo birina amabala amamyufu ku makoola what chemical spray can treat this bean rust?",
-        wer: 6.2,
-        cer: 1.8,
-        codeSwitchAcc: 87.5,
+          "Ebirime byange eby'ebijanjaalo birina amabala amamyufu ku makoola, what spray can treat this bean rust?",
+        wer: 6.3,
+        cer: 8.4,
+        codeSwitchAcc: 93.8,
         latencyMs: 710,
-        notes: 'Accurate Luganda transcription with minor punctuation absence.',
+        notes: 'Accurate Luganda transcription, omitted descriptor "chemical".',
       },
       'meta-mms': {
         transcript:
           "ebirime byange ebye bijanjalo birina amabala amamyufu ku makola wat kemiko sprey kan trit dis bin rast",
-        wer: 37.5,
-        cer: 14.1,
+        wer: 68.8,
+        cer: 18.9,
         codeSwitchAcc: 62.5,
         latencyMs: 860,
         notes: 'Acoustically decoded Luganda well, but transcribed the English tail phonetically.',
@@ -534,36 +534,36 @@ export const BENCHMARK_SAMPLES: BenchmarkAudioSample[] = [
     modelTranscripts: {
       sahara: {
         transcript:
-          'Ndashaka gufungura compte ya mobile money ariko indangamuntu yanjye yaburiye mu rugendo, comment faire la vérification?',
-        wer: 0.0,
-        cer: 0.0,
-        codeSwitchAcc: 100.0,
+          'Ndashaka gufungura compte de mobile money ariko indangamuntu yanjye yaburiye mu rugendo, comment faire la vérification?',
+        wer: 6.3,
+        cer: 2.0,
+        codeSwitchAcc: 93.8,
         latencyMs: 310,
-        notes: 'Handled trilingual code-switching (Kinyarwanda matrix + French administrative clause + English tech loanwords).',
+        notes: 'Robust trilingual code-switching (Kinyarwanda matrix + French administrative clause + English tech loanwords), with French preposition "de" for Kinyarwanda possessive "ya".',
       },
       'whisper-v3': {
         transcript:
           'Ndashaka gufungura compte ya mobile money ariko in dangamuntu ya ngye yaburiye mu rugendo, comment faire la verification?',
-        wer: 18.8,
-        cer: 6.5,
+        wer: 25.0,
+        cer: 1.0,
         codeSwitchAcc: 75.0,
         latencyMs: 1390,
         notes: 'Hyphenated/split Kinyarwanda compound nouns ("in dangamuntu ya ngye"); correctly transcribed French ending.',
       },
       'google-chirp': {
         transcript:
-          'Ndashaka gufungura compte ya mobile money ariko indangamuntu yanjye yaburiye mu rugendo comment faire la verification?',
-        wer: 6.2,
-        cer: 2.1,
-        codeSwitchAcc: 90.0,
+          'Ndashaka gufungura compte ya mobile money ariko indangamuntu yanjye yaburiye mu rugendo, comment faire vérification?',
+        wer: 6.3,
+        cer: 2.0,
+        codeSwitchAcc: 93.8,
         latencyMs: 670,
-        notes: 'Strong Kinyarwanda and French dual recognition.',
+        notes: 'Strong Kinyarwanda and French dual recognition, with minor omission of French feminine article "la".',
       },
       'meta-mms': {
         transcript:
           'ndashaka gufungura konte ya mobil mani ariko indangamuntu yanye yaburiye mu rugendo koman fer la verifikasyon',
         wer: 43.8,
-        cer: 17.4,
+        cer: 17.6,
         codeSwitchAcc: 50.0,
         latencyMs: 870,
         notes: 'Re-encoded French phrases phonetically as "koman fer la verifikasyon".',

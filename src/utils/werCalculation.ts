@@ -27,8 +27,11 @@ export interface MetricCalculationResult {
 // Normalize strings for speech evaluation: lowercase, remove non-apostrophe punctuation, trim spaces
 export function normalizeTranscript(text: string): string {
   return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove diacritics
     .toLowerCase()
-    .replace(/[^\w\s'-]/g, ' ')
+    .replace(/[-_]/g, ' ') // treat hyphens as word boundary
+    .replace(/[^\w\s']/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }

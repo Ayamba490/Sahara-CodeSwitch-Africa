@@ -228,6 +228,26 @@ ${SPEECH_MODELS.map(
               <span>Evidence Dossier (4 Pillars)</span>
             </button>
 
+            <a
+              href="/afriswitch_benchmark_reproducible_artifact.csv"
+              download="afriswitch_benchmark_reproducible_artifact.csv"
+              className="px-3.5 py-2.5 bg-white hover:bg-stone-100 text-black text-xs font-bold uppercase tracking-wider border border-black flex items-center space-x-1.5 transition-all"
+              title="Download full empirical benchmark CSV (transcripts, errors, latencies)"
+            >
+              <Download className="w-3.5 h-3.5 text-stone-700" />
+              <span>.CSV Artifact</span>
+            </a>
+
+            <a
+              href="/afriswitch_benchmark_reproducible_artifact.json"
+              download="afriswitch_benchmark_reproducible_artifact.json"
+              className="px-3.5 py-2.5 bg-white hover:bg-stone-100 text-black text-xs font-bold uppercase tracking-wider border border-black flex items-center space-x-1.5 transition-all"
+              title="Download full empirical benchmark JSON with DP alignment traces"
+            >
+              <Download className="w-3.5 h-3.5 text-stone-700" />
+              <span>.JSON Artifact</span>
+            </a>
+
             <button
               onClick={downloadPythonScript}
               className="px-3.5 py-2.5 bg-white hover:bg-stone-100 text-black text-xs font-bold uppercase tracking-wider border border-black flex items-center space-x-1.5 transition-all"

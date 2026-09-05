@@ -429,6 +429,15 @@ export const BenchmarkReportModal: React.FC<BenchmarkReportModalProps> = ({
                 </div>
 
                 <div className="flex items-center space-x-2">
+                  <a
+                    href="/afriswitch_benchmark_reproducible_artifact.csv"
+                    download="afriswitch_benchmark_reproducible_artifact.csv"
+                    className="px-3 py-1.5 bg-[#FAF8F5] hover:bg-stone-200 text-black border border-black/30 text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5"
+                    title="Download benchmark CSV matrix"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#F27D26]" />
+                    <span>Download .CSV</span>
+                  </a>
                   <button
                     onClick={handleCopyJson}
                     className="px-3 py-1.5 bg-white hover:bg-stone-100 text-black border border-black/30 text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5"
