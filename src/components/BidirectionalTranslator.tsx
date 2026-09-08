@@ -26,12 +26,16 @@ interface TranslationResult {
   detectedCodeSwitching?: boolean;
   confidence?: number;
   engine?: string;
+  provider?: string;
   isLiveAi?: boolean;
   latencyMs?: number;
 }
 
+interface BidirectionalTranslatorProps {}
+
 const SUPPORTED_LANGUAGES = [
   { code: 'en', name: 'English', voiceLang: 'en-US', region: 'Global / West / East Africa' },
+  { code: 'lg', name: 'Luganda (Oluganda)', voiceLang: 'lg-UG', region: 'Uganda (Buganda), East Africa' },
   { code: 'sw', name: 'Swahili (Kiswahili)', voiceLang: 'sw-KE', region: 'Kenya, Tanzania, Uganda, DRC' },
   { code: 'yo', name: 'Yoruba (Èdè Yorùbá)', voiceLang: 'yo-NG', region: 'Southwestern Nigeria, Benin' },
   { code: 'pcm', name: 'Nigerian Pidgin (Naija)', voiceLang: 'en-NG', region: 'Nigeria, Ghana, Cameroon' },
@@ -42,6 +46,24 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 const PRESETS = [
+  {
+    title: 'English ➔ Luganda (Clinical)',
+    source: 'English',
+    target: 'Luganda (Oluganda)',
+    text: 'The patient has a very high fever and joint pains; take two tablets every morning.',
+  },
+  {
+    title: 'Luganda ➔ English (Clinic Triage)',
+    source: 'Luganda (Oluganda)',
+    target: 'English',
+    text: 'Omulwadde alina omusujja omungi nnyo era alumizibwa mu lubuto nnyo.',
+  },
+  {
+    title: 'Luganda ➔ English (Agronomy Advisory)',
+    source: 'Luganda (Oluganda)',
+    target: 'English',
+    text: "Ebirime byange eby'ebijanjaalo birina amabala amamyufu ku makoola, what chemical spray can treat this bean rust?",
+  },
   {
     title: 'English ➔ Swahili (Clinical)',
     source: 'English',
@@ -74,13 +96,13 @@ const PRESETS = [
   },
   {
     title: 'Vernacular Greeting ➔ English',
-    source: 'Swahili (Kiswahili)',
+    source: 'Luganda (Oluganda)',
     target: 'English',
-    text: 'Habari yako, jambo daktari?',
+    text: 'Oli otya nno? Gyebaleko musawo waffe.',
   },
 ];
 
-export const BidirectionalTranslator: React.FC = () => {
+export const BidirectionalTranslator: React.FC<BidirectionalTranslatorProps> = () => {
   const [sourceLang, setSourceLang] = useState<string>('Auto-Detect');
   const [targetLang, setTargetLang] = useState<string>('English');
   const [inputText, setInputText] = useState<string>('Mgonjwa ana homa kali sana na joint pains, bado anatapika non-stop since asubuhi.');
@@ -111,14 +133,19 @@ export const BidirectionalTranslator: React.FC = () => {
 
     setIsTranslating(true);
     try {
+      const grokKey = localStorage.getItem('grok_api_key');
       const res = await fetch('/api/translate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(grokKey ? { 'x-grok-api-key': grokKey } : {}),
+        },
         body: JSON.stringify({
           text: textToTranslate,
           sourceLang: sourceLang,
           targetLang: targetLang,
           context: contextMode,
+          grokApiKey: grokKey || undefined,
         }),
       });
 
@@ -226,12 +253,12 @@ export const BidirectionalTranslator: React.FC = () => {
                 Bidirectional African Language & Code-Switch Translation Studio
               </h2>
               <p className="text-xs text-stone-600 font-mono">
-                Translate seamlessly between African Indigenous Vernaculars (Swahili, Yoruba, Pidgin, Hausa, Zulu, Igbo) and Standard English
+                Translate seamlessly between African Indigenous Vernaculars (Luganda, Swahili, Yoruba, Pidgin, Hausa, Zulu, Igbo) and Standard English
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-stone-100 text-stone-700 px-2 py-1 border border-black/15">
               Domain Context:
             </span>
@@ -372,7 +399,7 @@ export const BidirectionalTranslator: React.FC = () => {
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Type English sentence or African vernacular (e.g. Swahili, Yoruba, Hausa, Pidgin)..."
+              placeholder="Type English sentence or African vernacular (e.g. Luganda, Swahili, Yoruba, Hausa, Pidgin)..."
               rows={7}
               className="w-full bg-[#FAF8F5] border border-black/20 p-3 text-sm font-mono text-black placeholder-stone-400 focus:outline-none focus:border-black resize-none leading-relaxed"
             />

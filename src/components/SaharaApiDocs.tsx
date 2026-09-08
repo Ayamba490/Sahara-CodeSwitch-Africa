@@ -37,6 +37,7 @@ import { ALL_LANGUAGE_PAIRS } from '../data/benchmarkData';
 
 interface SaharaApiDocsProps {
   hasSaharaKey: boolean;
+  hasGrokKey?: boolean;
   onOpenKeyModal: () => void;
 }
 
@@ -52,6 +53,7 @@ type DocTab =
 
 export const SaharaApiDocs: React.FC<SaharaApiDocsProps> = ({
   hasSaharaKey,
+  hasGrokKey = false,
   onOpenKeyModal,
 }) => {
   const [activeTab, setActiveTab] = useState<DocTab>('intro');
@@ -506,6 +508,7 @@ curl -X POST https://infer.voice.intron.io/tts/v1/generate \\
     { code: 'pcm-NG', language: 'Nigerian Pidgin', region: 'Nigeria, West Africa', sampleRate: '16kHz / 8kHz', codeSwitch: 'Pidgin ⇄ Standard English', domain: 'Fintech & Intake', ttsVoice: 'chidi-pidgin' },
     { code: 'ha-NG', language: 'Hausa', region: 'Northern Nigeria, Niger', sampleRate: '16kHz / 8kHz', codeSwitch: 'Hausa ⇄ English', domain: 'Agri & Health', ttsVoice: 'fatima-hausa' },
     { code: 'zu-ZA', language: 'isiZulu (Zulu)', region: 'South Africa, Eswatini', sampleRate: '16kHz / 8kHz', codeSwitch: 'isiZulu ⇄ English', domain: 'Public Services', ttsVoice: 'sipho-zulu' },
+    { code: 'lg-UG', language: 'Luganda (Oluganda)', region: 'Uganda (Kampala, Buganda)', sampleRate: '16kHz / 8kHz', codeSwitch: 'Luganda ⇄ English', domain: 'Agri, Health & Trade', ttsVoice: 'namubiru-luganda' },
     { code: 'ig-NG', language: 'Igbo (Asụsụ Igbo)', region: 'Southeastern Nigeria', sampleRate: '16kHz / 8kHz', codeSwitch: 'Igbo ⇄ English', domain: 'Trade & Clinics', ttsVoice: 'ngozi-igbo' },
     { code: 'rw-RW', language: 'Kinyarwanda', region: 'Rwanda, Eastern DRC', sampleRate: '16kHz', codeSwitch: 'Kinyarwanda ⇄ French/English', domain: 'Telemedicine', ttsVoice: 'mugisha-rwanda' },
     { code: 'am-ET', language: 'Amharic', region: 'Ethiopia', sampleRate: '16kHz', codeSwitch: 'Amharic ⇄ English', domain: 'Public Admin', ttsVoice: 'almaz-amharic' },
@@ -562,13 +565,13 @@ curl -X POST https://infer.voice.intron.io/tts/v1/generate \\
             <button
               onClick={onOpenKeyModal}
               className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-[2px_2px_0px_0px_black] ${
-                hasSaharaKey
+                hasSaharaKey || hasGrokKey
                   ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                   : 'bg-black text-white hover:bg-stone-800'
               }`}
             >
               <KeyRound className="w-3.5 h-3.5 text-[#F27D26]" />
-              <span>{hasSaharaKey ? 'API Gateway: Connected' : 'Configure API Key'}</span>
+              <span>{hasSaharaKey || hasGrokKey ? 'Gateways: Configured' : 'Configure API Keys'}</span>
             </button>
           </div>
         </div>
@@ -887,6 +890,7 @@ curl -X POST https://infer.voice.intron.io/tts/v1/generate \\
                   >
                     <option value="Yoruba-English">Yoruba ⇄ English (Clinic Febrile)</option>
                     <option value="Swahili-English">Swahili ⇄ English (Malaria Triage)</option>
+                    <option value="Luganda-English">Luganda ⇄ English (Buganda Agronomy)</option>
                   </select>
 
                   <button
@@ -1026,6 +1030,7 @@ curl -X POST https://infer.voice.intron.io/tts/v1/generate \\
                     <option value="pidgin-fintech">Nigerian Pidgin (Fintech USSD Remittance)</option>
                     <option value="hausa-agri">Hausa ⇄ English (Crop Disease Agronomy)</option>
                     <option value="zulu-public">isiZulu ⇄ English (Municipal Deed Affidavit)</option>
+                    <option value="luganda-agri">Luganda ⇄ English (Buganda Agronomy Extension)</option>
                   </select>
                 </div>
 
@@ -1044,6 +1049,7 @@ curl -X POST https://infer.voice.intron.io/tts/v1/generate \\
                       <option value="Pidgin-English">Pidgin-English</option>
                       <option value="Hausa-English">Hausa-English</option>
                       <option value="Zulu-English">Zulu-English</option>
+                      <option value="Luganda-English">Luganda-English</option>
                     </select>
                   </div>
 
@@ -1209,6 +1215,7 @@ curl -X POST https://infer.voice.intron.io/tts/v1/generate \\
                       <option value="chidi-pidgin-male">Chidi — Nigerian Pidgin Male</option>
                       <option value="fatima-hausa-female">Fatima — Hausa (Northern Nigeria) Female</option>
                       <option value="sipho-zulu-male">Sipho — isiZulu (South Africa) Male</option>
+                      <option value="namubiru-luganda-female">Namubiru — Luganda (Uganda) Female</option>
                       <option value="dami-english-female">Dami — West African English Female</option>
                     </select>
                   </div>

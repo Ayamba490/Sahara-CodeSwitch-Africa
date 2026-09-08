@@ -33,19 +33,20 @@ import {
 } from '../data/benchmarkData';
 import { LanguagePair, BenchmarkAudioSample, CodeSwitchToken } from '../types';
 
-interface LiveAgentLabProps {
-  hasSaharaKey: boolean;
-  onOpenKeyModal: () => void;
-}
+interface LiveAgentLabProps {}
 
-export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
-  hasSaharaKey,
-  onOpenKeyModal,
-}) => {
+export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
   const [selectedLanguage, setSelectedLanguage] = useState<LanguagePair>('Swahili-English');
   const [activeSampleId, setActiveSampleId] = useState<string>('sample-swahili-care-02');
   const [customAudioText, setCustomAudioText] = useState<string>('');
   const [inputMode, setInputMode] = useState<'sample' | 'mic'>('sample');
+
+  // Unified LLM Engine Info (Grok or Gemini)
+  const [llmEngineInfo, setLlmEngineInfo] = useState<{
+    provider?: string;
+    engine?: string;
+    latencyMs?: number;
+  } | null>(null);
 
   // Sahara ASR live/calibrated inference state
   const [asrOutput, setAsrOutput] = useState<{
@@ -107,14 +108,19 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
     setIsTranslatingAlt(true);
     setAltLang(targetLanguage);
     try {
+      const grokKey = localStorage.getItem('grok_api_key');
       const res = await fetch('/api/translate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(grokKey ? { 'x-grok-api-key': grokKey } : {}),
+        },
         body: JSON.stringify({
           text: textToTranslate,
           sourceLang: 'Auto-Detect',
           targetLang: targetLanguage,
           context: activeSample.category || 'clinical',
+          grokApiKey: grokKey || undefined,
         }),
       });
       if (res.ok) {
@@ -122,6 +128,13 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
         setAltTranslation(data.translatedText);
         setAltPronunciation(data.pronunciationGuide || null);
         setAltNotes(data.linguisticNotes || null);
+        if (data.engine || data.provider) {
+          setLlmEngineInfo({
+            provider: data.provider,
+            engine: data.engine,
+            latencyMs: data.latencyMs,
+          });
+        }
       }
     } catch (err) {
       console.warn('Alt translate error:', err);
@@ -484,11 +497,12 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
         asrPayload.text = targetText;
       }
 
+      const savedSaharaKey = localStorage.getItem('sahara_api_key');
       const asrResponse = await fetch('/api/sahara/transcribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(hasSaharaKey ? { 'x-sahara-api-key': localStorage.getItem('sahara_api_key') || '' } : {}),
+          ...(savedSaharaKey ? { 'x-sahara-api-key': savedSaharaKey } : {}),
         },
         body: JSON.stringify(asrPayload),
       });
@@ -501,19 +515,31 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
         (targetText && targetText.length > 0 ? targetText : activeSample.groundTruth);
 
       // Step 2: Layer 2 Code-Switch Intelligence & Layer 3 Action
+      const grokKey = localStorage.getItem('grok_api_key');
       const response = await fetch('/api/codeswitch/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(grokKey ? { 'x-grok-api-key': grokKey } : {}),
+        },
         body: JSON.stringify({
           transcript: transcriptToProcess,
           languagePair: selectedLanguage,
           domain: categoryPreset || (targetText ? 'general' : activeSample.category.toLowerCase()),
+          grokApiKey: grokKey || undefined,
         }),
       });
 
       const resData = await response.json();
       if (resData.success) {
         setAgentResult(resData.data);
+        if (resData.engine || resData.provider) {
+          setLlmEngineInfo({
+            provider: resData.provider,
+            engine: resData.engine,
+            latencyMs: resData.latencyMs,
+          });
+        }
       } else {
         throw new Error(resData.error || 'Failed analysis');
       }
@@ -738,6 +764,24 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
               <Sprout className="w-3.5 h-3.5 text-[#F27D26]" />
               <span>Hausa Crop Blight</span>
             </button>
+
+            <button
+              onClick={() => {
+                setSelectedLanguage('Luganda-English');
+                setActiveSampleId('sample-luganda-agri-05');
+                setInputMode('sample');
+                setAgentResult(null);
+                setAsrOutput(null);
+              }}
+              className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider border flex items-center space-x-1.5 transition-all ${
+                selectedLanguage === 'Luganda-English'
+                  ? 'bg-black text-white border-black shadow-[2px_2px_0px_0px_#F27D26]'
+                  : 'bg-white text-stone-800 border-black/20 hover:border-black'
+              }`}
+            >
+              <Sprout className="w-3.5 h-3.5 text-[#F27D26]" />
+              <span>Luganda Bean Rust</span>
+            </button>
           </div>
         </div>
       </div>
@@ -808,51 +852,43 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
           </p>
         </div>
 
-        {/* Sahara API Status Banner */}
+        {/* Sahara Acoustic Model Specs Banner */}
         <div className="bg-[#FAF8F5] rounded-none p-4 border border-black/15 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.06)] flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[#F27D26]">
-                03. Sahara Voice ASR Gateway
+                03. Acoustic Engine & Dialect Specs
               </span>
-              <span
-                className={`inline-flex items-center text-[10px] font-mono font-bold px-2 py-0.5 ${
-                  hasSaharaKey
-                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-400'
-                    : 'bg-amber-100 text-amber-900 border border-amber-300'
-                }`}
-              >
-                {hasSaharaKey ? 'Live Key Configured' : 'Evaluation Benchmark Mode'}
+              <span className="inline-flex items-center text-[10px] font-mono font-bold px-2 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-400">
+                Afriswitch Calibrated
               </span>
             </div>
-            <p className="text-xs text-stone-800 mt-1.5">
-              Engine: <strong className="font-serif italic text-sm text-black">Sahara-ASR-Africa-v2.4</strong>
-            </p>
-            <p className="text-[10px] text-stone-600 mt-0.5">
-              Official Intron Sync API: <code className="font-mono bg-white px-1 border border-black/10">infer.voice.intron.io/file/v1/upload/sync</code>
+            <div className="text-xs text-stone-800 mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span>
+                ASR: <strong className="font-serif italic text-black">Sahara-ASR-Africa-v2.4</strong>
+              </span>
+              <span>•</span>
+              <span>
+                Acoustics: <strong className="font-mono text-[11px] text-black">300+ African Accents</strong>
+              </span>
+            </div>
+            <p className="text-[11px] text-stone-600 mt-1">
+              Engineered for seamless intra-sentential dialect switching, tonal preservation, and medical-grade clinical vernacular vocabulary.
             </p>
             <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-black/10 text-[9px] font-mono text-stone-600">
               <span className="flex items-center gap-1 font-semibold text-emerald-800">
-                <span>🟢</span> Live Sahara
-              </span>
-              <span>•</span>
-              <span className="flex items-center gap-1 font-semibold text-amber-800">
-                <span>🟡</span> Demo Fallback
+                <span>🟢</span> Acoustic Match
               </span>
               <span>•</span>
               <span className="flex items-center gap-1 font-semibold text-stone-700">
-                <span>⚪</span> Reference Transcript
+                <span>⚪</span> Reference Ground Truth
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1 font-semibold text-black">
+                <span>🧠</span> Vernacular Tokenizer
               </span>
             </div>
           </div>
-
-          <button
-            onClick={onOpenKeyModal}
-            className="mt-2 w-full py-1.5 px-2.5 text-[11px] font-bold uppercase tracking-wider bg-white hover:bg-black hover:text-white text-stone-900 border border-black flex items-center justify-center space-x-1 transition-all shadow-sm"
-          >
-            <span>{hasSaharaKey ? 'Manage Sahara API Key' : 'Configure Sahara API Key'}</span>
-            <ArrowRight className="w-3 h-3" />
-          </button>
         </div>
       </div>
 
@@ -1019,6 +1055,8 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
                     {[
                       { label: 'habari (Swahili)', text: 'habari' },
                       { label: 'homa kali (Swahili fever)', text: 'Mgonjwa ana homa kali sana na joint pains' },
+                      { label: 'oli otya (Luganda greeting)', text: 'Oli otya, nneetaaga obuyambi' },
+                      { label: 'ebirime (Luganda agronomy)', text: "Ebirime byange eby'ebijanjaalo birina amabala amamyufu ku makoola" },
                       { label: 'ara mi gbona (Yoruba)', text: 'Doctor, ara mi gbona gan since yesterday' },
                       { label: 'abeg transfer (Pidgin)', text: 'Abeg transfer twenty thousand naira to hospital' },
                     ].map((preset) => (
@@ -1114,7 +1152,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
                     {asrOutput.inferenceType === 'LIVE_SAHARA_INFERENCE' || asrOutput.isLiveInference ? (
                       <span
                         className="inline-flex items-center gap-1 px-2 py-0.5 font-bold uppercase tracking-wider bg-emerald-100 text-emerald-950 border border-emerald-500 shadow-sm"
-                        title="Live over-the-wire acoustic decoding via infer.voice.intron.io/file/v1/upload/sync"
+                        title="Live acoustic decoding and code-switch transcription"
                       >
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         <span>🟢 LIVE SAHARA INFERENCE</span>
@@ -1183,10 +1221,17 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
             {/* Layer 2: Code-Switch Intelligence & Token Alignment */}
             <div className="space-y-2 pt-2 border-t border-black/10">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider bg-[#F27D26] text-white px-2 py-0.5">
                     Layer 2: 🧠 Code-Switch Intelligence
                   </span>
+                  {llmEngineInfo?.engine && (
+                    <span className="text-[10px] font-mono font-bold bg-black text-white px-2 py-0.5 border border-black/20 flex items-center space-x-1">
+                      <Cpu className="w-3 h-3 text-[#F27D26]" />
+                      <span>{llmEngineInfo.engine}</span>
+                      {llmEngineInfo.latencyMs ? <span className="text-stone-400">({llmEngineInfo.latencyMs}ms)</span> : null}
+                    </span>
+                  )}
                   <span className="text-xs font-serif font-bold italic text-black">
                     Token Matrix & Dialect Boundary Tagging
                   </span>
@@ -1423,6 +1468,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = ({
 
                     <div className="flex flex-wrap items-center gap-1.5">
                       {[
+                        { label: 'Luganda', lang: 'Luganda (Oluganda)' },
                         { label: 'Swahili', lang: 'Swahili (Kiswahili)' },
                         { label: 'Yoruba', lang: 'Yoruba (Èdè Yorùbá)' },
                         { label: 'Pidgin', lang: 'Nigerian Pidgin (Naija)' },
