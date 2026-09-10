@@ -14,22 +14,11 @@ import {
   Stethoscope,
   Info,
   ChevronRight,
+  Zap,
 } from 'lucide-react';
+import { translatePolyglotClient, TranslationResult as PolyglotResult } from '../utils/polyglotEngine';
 
-interface TranslationResult {
-  translatedText: string;
-  sourceLanguage: string;
-  targetLanguage: string;
-  pronunciationGuide?: string;
-  literalBreakdown?: string;
-  linguisticNotes?: string;
-  detectedCodeSwitching?: boolean;
-  confidence?: number;
-  engine?: string;
-  provider?: string;
-  isLiveAi?: boolean;
-  latencyMs?: number;
-}
+interface TranslationResult extends PolyglotResult {}
 
 interface BidirectionalTranslatorProps {}
 
@@ -132,13 +121,22 @@ export const BidirectionalTranslator: React.FC<BidirectionalTranslatorProps> = (
     if (!textToTranslate.trim()) return;
 
     setIsTranslating(true);
+    let resolved = false;
+
     try {
       const grokKey = localStorage.getItem('grok_api_key');
+      const geminiKey = localStorage.getItem('gemini_api_key');
+
+      // Abort controller with 3.5s timeout for snappy UI
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
       const res = await fetch('/api/translate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(grokKey ? { 'x-grok-api-key': grokKey } : {}),
+          ...(geminiKey ? { 'x-gemini-api-key': geminiKey } : {}),
         },
         body: JSON.stringify({
           text: textToTranslate,
@@ -146,18 +144,38 @@ export const BidirectionalTranslator: React.FC<BidirectionalTranslatorProps> = (
           targetLang: targetLang,
           context: contextMode,
           grokApiKey: grokKey || undefined,
+          geminiApiKey: geminiKey || undefined,
         }),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
       if (res.ok) {
-        const data = await res.json();
-        setResult(data);
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data && data.translatedText) {
+            setResult(data);
+            resolved = true;
+          }
+        }
       }
     } catch (err) {
-      console.error('Translation error:', err);
-    } finally {
-      setIsTranslating(false);
+      console.warn('Live API unavailable or static Vercel host detected, executing in-browser polyglot engine:', err);
     }
+
+    // High-precision client-side Polyglot fallback: guarantees instant response on Vercel or offline
+    if (!resolved) {
+      try {
+        const clientResult = translatePolyglotClient(textToTranslate, sourceLang, targetLang, contextMode);
+        setResult(clientResult);
+      } catch (clientErr) {
+        console.error('Client-side translation fallback error:', clientErr);
+      }
+    }
+
+    setIsTranslating(false);
   };
 
   const playAudio = (text: string, langName: string) => {
@@ -517,11 +535,24 @@ export const BidirectionalTranslator: React.FC<BidirectionalTranslatorProps> = (
             )}
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-black/10 text-[10px] font-mono text-stone-600">
-            <span>
-              Engine: <strong className="text-black">{result?.engine || 'Sahara Polyglot Engine'}</strong>
-            </span>
-            {result?.latencyMs && <span>Latency: {result.latencyMs}ms</span>}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-black/10 text-[10px] font-mono text-stone-600">
+            <div className="flex items-center space-x-2">
+              <span>
+                Engine: <strong className="text-black">{result?.engine || 'Sahara Polyglot Engine'}</strong>
+              </span>
+              {result?.isClientFallback && (
+                <span className="px-1.5 py-0.5 bg-amber-50 text-amber-900 border border-amber-300 font-bold flex items-center space-x-1">
+                  <Zap className="w-2.5 h-2.5 text-[#F27D26]" />
+                  <span>Vercel / In-Browser Engine</span>
+                </span>
+              )}
+              {result?.isLiveAi && (
+                <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold">
+                  🟢 Live AI Cloud
+                </span>
+              )}
+            </div>
+            {result?.latencyMs !== undefined && <span>Latency: {result.latencyMs}ms</span>}
           </div>
         </div>
       </div>

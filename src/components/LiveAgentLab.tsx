@@ -32,6 +32,7 @@ import {
   ALL_LANGUAGE_PAIRS,
 } from '../data/benchmarkData';
 import { LanguagePair, BenchmarkAudioSample, CodeSwitchToken } from '../types';
+import { translatePolyglotClient } from '../utils/polyglotEngine';
 
 interface LiveAgentLabProps {}
 
@@ -107,13 +108,21 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
 
     setIsTranslatingAlt(true);
     setAltLang(targetLanguage);
+    let resolved = false;
+
     try {
       const grokKey = localStorage.getItem('grok_api_key');
+      const geminiKey = localStorage.getItem('gemini_api_key');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
       const res = await fetch('/api/translate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(grokKey ? { 'x-grok-api-key': grokKey } : {}),
+          ...(geminiKey ? { 'x-gemini-api-key': geminiKey } : {}),
         },
         body: JSON.stringify({
           text: textToTranslate,
@@ -121,26 +130,53 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
           targetLang: targetLanguage,
           context: activeSample.category || 'clinical',
           grokApiKey: grokKey || undefined,
+          geminiApiKey: geminiKey || undefined,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+
       if (res.ok) {
-        const data = await res.json();
-        setAltTranslation(data.translatedText);
-        setAltPronunciation(data.pronunciationGuide || null);
-        setAltNotes(data.linguisticNotes || null);
-        if (data.engine || data.provider) {
-          setLlmEngineInfo({
-            provider: data.provider,
-            engine: data.engine,
-            latencyMs: data.latencyMs,
-          });
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data && data.translatedText) {
+            setAltTranslation(data.translatedText);
+            setAltPronunciation(data.pronunciationGuide || null);
+            setAltNotes(data.linguisticNotes || null);
+            if (data.engine || data.provider) {
+              setLlmEngineInfo({
+                provider: data.provider,
+                engine: data.engine,
+                latencyMs: data.latencyMs,
+              });
+            }
+            resolved = true;
+          }
         }
       }
     } catch (err) {
-      console.warn('Alt translate error:', err);
-    } finally {
-      setIsTranslatingAlt(false);
+      console.warn('Live API unavailable for alt translation, using in-browser polyglot engine:', err);
     }
+
+    if (!resolved) {
+      try {
+        const clientResult = translatePolyglotClient(textToTranslate, 'Auto-Detect', targetLanguage, activeSample.category || 'clinical');
+        setAltTranslation(clientResult.translatedText);
+        setAltPronunciation(clientResult.pronunciationGuide || null);
+        setAltNotes(clientResult.linguisticNotes || null);
+        setLlmEngineInfo({
+          provider: 'Intron Sahara Hybrid Engine',
+          engine: 'Sahara Polyglot Engine (Vercel Standalone)',
+          latencyMs: clientResult.latencyMs || 45,
+        });
+      } catch (clientErr) {
+        console.error('Client-side alt translate error:', clientErr);
+      }
+    }
+
+    setIsTranslatingAlt(false);
   };
 
   // Filter samples matching language
