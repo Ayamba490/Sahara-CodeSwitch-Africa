@@ -898,6 +898,30 @@ Return ONLY a valid JSON object (no markdown, no backticks):
     // High-Coverage Offline Polyglot Translation Dictionary & Rule Engine
     const bidirectionalDictionary: Record<string, Record<string, { trans: string; pron: string; notes: string }>> = {
       // Common Social & Daily Life Expressions
+      'i love you': {
+        Luganda: { trans: 'Nkwagala / Nkwagala nnyo', pron: 'n-kwah-GAH-lah / n-kwah-GAH-lah nn-YOH', notes: 'Standard expression of love and affection in Luganda. "Nkwagala nnyo" adds "very much".' },
+        Swahili: { trans: 'Ninakupenda / Nakupenda', pron: 'nee-nah-koo-PEN-dah / nah-koo-PEN-dah', notes: 'Universal Swahili declaration of affection across East Africa.' },
+        Yoruba: { trans: 'Mo nífẹ̀ẹ́ rẹ', pron: 'moh nee-FEH-eh reh', notes: 'Standard Yoruba phrase expressing deep, heartfelt love.' },
+        'Nigerian Pidgin': { trans: 'I love you die / I dey feel you well well', pron: 'eye love yoo dye', notes: 'Enthusiastic Nigerian Pidgin idiom expressing devoted love.' },
+        Hausa: { trans: 'Ina son ki (to female) / Ina son ka (to male)', pron: 'EE-nah sohn kee / EE-nah sohn kah', notes: 'Hausa inflects the direct object pronoun by gender: "ki" for female, "ka" for male.' },
+        isiZulu: { trans: 'Ngiyakuthanda', pron: 'ngee-yah-koo-TAHN-dah', notes: 'Universal Zulu declaration of love.' },
+      },
+      'i love you so much': {
+        Luganda: { trans: 'Nkwagala nnyo nnyo', pron: 'n-kwah-GAH-lah nn-YOH nn-YOH', notes: 'Deep emphatic love in Luganda.' },
+        Swahili: { trans: 'Ninakupenda sana / Nakupenda sana', pron: 'nee-nah-koo-PEN-dah SAH-nah', notes: 'Profound love in Swahili.' },
+        Yoruba: { trans: 'Mo nífẹ̀ẹ́ rẹ púpọ̀', pron: 'moh nee-FEH-eh reh POO-poh', notes: 'Emphatic affection in Yoruba.' },
+        'Nigerian Pidgin': { trans: 'I love you well well / I love you no be small', pron: 'eye love yoo well-well', notes: 'Intense love in Nigerian Pidgin.' },
+        Hausa: { trans: 'Ina son ki sosai (to female) / Ina son ka sosai (to male)', pron: 'EE-nah sohn kee soh-SY', notes: 'Deep affection in Hausa.' },
+        isiZulu: { trans: 'Ngiyakuthanda kakhulu', pron: 'ngee-yah-koo-TAHN-dah kah-KOO-loo', notes: 'Profound affection in Zulu.' },
+      },
+      'i like you': {
+        Luganda: { trans: 'Nkwagala / Onnyumira', pron: 'n-kwah-GAH-lah / ohn-nyoo-MEE-rah', notes: 'Polite appreciation.' },
+        Swahili: { trans: 'Ninakupenda / Ninakukubali', pron: 'nee-nah-koo-PEN-dah', notes: 'Standard East African liking.' },
+        Yoruba: { trans: 'Mo fẹ́ràn rẹ', pron: 'moh FEH-rahn reh', notes: 'Polite expression of liking someone.' },
+        'Nigerian Pidgin': { trans: 'I like you well well / Your matter dey sweet me', pron: 'eye like yoo well-well', notes: 'Warm Naija liking.' },
+        Hausa: { trans: 'Ina son ki / Ina son ka', pron: 'EE-nah sohn kee', notes: 'Standard Hausa expression.' },
+        isiZulu: { trans: 'Ngiyakuthanda', pron: 'ngee-yah-koo-TAHN-dah', notes: 'Standard Zulu expression.' },
+      },
       'have you eaten lunch': {
         Luganda: { trans: "Olidde eky'emisana? (au: Olidde lunch?)", pron: "oh-LEED-deh eh-chyeh-mee-SAH-nah", notes: "In Luganda, 'Olidde' is the perfective inquiry for eating and 'eky'emisana' denotes the midday meal." },
         Swahili: { trans: 'Umekula chakula cha mchana? (au: Umekula lunch?)', pron: 'oo-meh-KOO-lah chah-KOO-lah chah m-CHAH-nah', notes: 'In East African conversational Kiswahili and Sheng code-switching, "Umekula lunch?" is widely accepted alongside the formal phrasing.' },
@@ -1019,6 +1043,33 @@ Return ONLY a valid JSON object (no markdown, no backticks):
         isiZulu: { trans: 'Phuza amaphilisi amabili njalo ekuseni.', pron: 'POO-zah ah-mah-pee-LEE-see...', notes: 'Standard clinical dispensing instruction.' },
       },
       // African Languages to English
+      'nkwagala': {
+        English: { trans: 'I love you', pron: 'n-kwah-GAH-lah', notes: 'Luganda expression of affection and love.' },
+      },
+      'nkwagala nnyo': {
+        English: { trans: 'I love you very much', pron: 'n-kwah-GAH-lah nn-YOH', notes: 'Luganda emphatic expression of love.' },
+      },
+      'nakupenda': {
+        English: { trans: 'I love you', pron: 'nah-koo-PEN-dah', notes: 'Swahili standard expression of love.' },
+      },
+      'ninakupenda': {
+        English: { trans: 'I love you', pron: 'nee-nah-koo-PEN-dah', notes: 'Swahili standard continuous expression of love.' },
+      },
+      'ninakupenda sana': {
+        English: { trans: 'I love you very much', pron: 'nee-nah-koo-PEN-dah SAH-nah', notes: 'Emphatic Swahili love declaration.' },
+      },
+      'ngiyakuthanda': {
+        English: { trans: 'I love you', pron: 'ngee-yah-koo-TAHN-dah', notes: 'Universal Zulu declaration of love.' },
+      },
+      'mo nife re': {
+        English: { trans: 'I love you', pron: 'moh nee-FEH reh', notes: 'Standard Yoruba expression of love.' },
+      },
+      'ina son ki': {
+        English: { trans: 'I love you (addressed to a woman)', pron: 'EE-nah sohn kee', notes: 'Hausa expression of affection.' },
+      },
+      'ina son ka': {
+        English: { trans: 'I love you (addressed to a man)', pron: 'EE-nah sohn kah', notes: 'Hausa expression of affection.' },
+      },
       'habari': {
         English: { trans: 'Hello / How are you? / What is the news?', pron: 'hah-BAH-ree', notes: 'Swahili customary greeting used throughout Kenya, Tanzania, Uganda, Rwanda, DRC.' },
       },

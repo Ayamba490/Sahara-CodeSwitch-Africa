@@ -61,6 +61,103 @@ interface PhraseEntry {
 }
 
 const PHRASEBOOK: Record<string, PhraseEntry> = {
+  // Expressions of affection & personal care
+  'i love you': {
+    sourceLang: 'English',
+    translations: {
+      Luganda: {
+        trans: 'Nkwagala / Nkwagala nnyo',
+        pron: 'n-kwah-GAH-lah / n-kwah-GAH-lah nn-YOH',
+        literal: 'Nkwagala (n- [I] + -ku- [you] + -agala [love])',
+        notes: 'Standard expression of genuine love and affection in Luganda. Adding "nnyo" means "I love you very much".',
+      },
+      Swahili: {
+        trans: 'Ninakupenda / Nakupenda',
+        pron: 'nee-nah-koo-PEN-dah / nah-koo-PEN-dah',
+        literal: 'Ninakupenda (ni- [I] + -na- [present] + -ku- [you] + -penda [love])',
+        notes: 'Standard Swahili declaration of affection across East Africa (Kenya, Tanzania, Uganda, Rwanda, DRC).',
+      },
+      Yoruba: {
+        trans: 'Mo nífẹ̀ẹ́ rẹ',
+        pron: 'moh nee-FEH-eh reh',
+        literal: 'Mo (I) + nífẹ̀ẹ́ (love) + rẹ (you)',
+        notes: 'Standard Yoruba phrase expressing heartfelt romantic or deep familial love.',
+      },
+      'Nigerian Pidgin': {
+        trans: 'I love you die / I dey feel you well well',
+        pron: 'eye love yoo dye / eye day feel yoo well-well',
+        literal: 'I love you die (expresses complete devotion)',
+        notes: 'Colloquial Nigerian Pidgin idiom denoting enthusiastic, all-encompassing love and fondness.',
+      },
+      Hausa: {
+        trans: 'Ina son ki (to female) / Ina son ka (to male)',
+        pron: 'EE-nah sohn kee / EE-nah sohn kah',
+        literal: 'Ina (I am) + son (loving/liking) + ki/ka (you)',
+        notes: 'Hausa inflects the pronoun for gender: "ki" when speaking to a woman, "ka" when speaking to a man.',
+      },
+      isiZulu: {
+        trans: 'Ngiyakuthanda',
+        pron: 'ngee-yah-koo-TAHN-dah',
+        literal: 'Ngiyakuthanda (ngi- [I] + -ya- [continuous] + -ku- [you] + -thanda [love])',
+        notes: 'Universal Zulu declaration of love.',
+      },
+      Igbo: {
+        trans: "Ahụrụ m gị n'anya",
+        pron: 'ah-HOO-roo m gee NAHN-yah',
+        literal: "Ahụrụ m (I see) + gị (you) + n'anya (in the eye/love)",
+        notes: 'Poetic Igbo idiom for love, literally "I see you in my eyes".',
+      },
+    },
+  },
+
+  'i love you so much': {
+    sourceLang: 'English',
+    translations: {
+      Luganda: { trans: 'Nkwagala nnyo nnyo', pron: 'n-kwah-GAH-lah nn-YOH nn-YOH', notes: 'Deep and emphatic affection in Luganda.' },
+      Swahili: { trans: 'Ninakupenda sana / Nakupenda sana', pron: 'nee-nah-koo-PEN-dah SAH-nah', notes: 'Profound love in Swahili.' },
+      Yoruba: { trans: 'Mo nífẹ̀ẹ́ rẹ púpọ̀', pron: 'moh nee-FEH-eh reh POO-poh', notes: '"Púpọ̀" emphasizes deep love.' },
+      'Nigerian Pidgin': { trans: 'I love you well well / I love you no be small', pron: 'eye love yoo well-well', notes: 'Intense love in Nigerian Pidgin.' },
+      Hausa: { trans: 'Ina son ki sosai (to female) / Ina son ka sosai (to male)', pron: 'EE-nah sohn kee soh-SY', notes: '"Sosai" means deeply.' },
+      isiZulu: { trans: 'Ngiyakuthanda kakhulu', pron: 'ngee-yah-koo-TAHN-dah kah-KOO-loo', notes: '"Kakhulu" expresses intense magnitude.' },
+    },
+  },
+
+  'i like you': {
+    sourceLang: 'English',
+    translations: {
+      Luganda: { trans: 'Nkwagala / Onnyumira', pron: 'n-kwah-GAH-lah / ohn-nyoo-MEE-rah', notes: '"Onnyumira" implies finding someone delightful.' },
+      Swahili: { trans: 'Ninakupenda / Ninakukubali', pron: 'nee-nah-koo-PEN-dah', notes: 'Standard East African liking.' },
+      Yoruba: { trans: 'Mo fẹ́ràn rẹ', pron: 'moh FEH-rahn reh', notes: 'Polite expression of liking someone.' },
+      'Nigerian Pidgin': { trans: 'I like you well well / Your matter dey sweet me', pron: 'eye like yoo well-well', notes: 'Warm Naija liking.' },
+      Hausa: { trans: 'Ina son ki / Ina son ka', pron: 'EE-nah sohn kee', notes: 'Standard Hausa expression.' },
+      isiZulu: { trans: 'Ngiyakuthanda', pron: 'ngee-yah-koo-TAHN-dah', notes: 'Standard Zulu expression.' },
+    },
+  },
+
+  'i miss you': {
+    sourceLang: 'English',
+    translations: {
+      Luganda: { trans: 'Nkusubwa / Nkusubiddwa', pron: 'n-koo-SOOB-wah', notes: 'Affectionate Luganda phrase acknowledging the pain of someone’s absence.' },
+      Swahili: { trans: 'Nimekukumbuka / Ninakukumbuka', pron: 'nee-meh-koo-koom-BOO-kah', notes: 'Swahili for longing/remembering someone fondly.' },
+      Yoruba: { trans: 'Mo ti ṣafẹ́ rẹ / Mo ṣaferan rẹ', pron: 'moh tee shah-FEH reh', notes: 'Yoruba expression of missing someone deeply.' },
+      'Nigerian Pidgin': { trans: 'I miss you well well / Your absence dey hungry me', pron: 'eye miss yoo well-well', notes: 'Naija idiom for longing.' },
+      Hausa: { trans: 'Na yi kewarki (to female) / Na yi kewarka (to male)', pron: 'nah yee kay-WAR-kee', notes: 'Hausa expression of missing someone.' },
+      isiZulu: { trans: 'Ngikukhumbulile', pron: 'ngee-koo-khoom-boo-LEE-leh', notes: 'Zulu perfective form expressing having missed someone.' },
+    },
+  },
+
+  'my love': {
+    sourceLang: 'English',
+    translations: {
+      Luganda: { trans: 'Muganzi wange / Omwagalwa wange', pron: 'moo-GAHN-zee WAHN-geh', notes: 'Classic Luganda term of endearment.' },
+      Swahili: { trans: 'Mpenzi wangu / Mahabuba wangu', pron: 'm-PEN-zee WAHN-goo', notes: 'Universal Swahili endearment.' },
+      Yoruba: { trans: 'Olólùfẹ́ mi', pron: 'oh-loh-loo-FEH mee', notes: 'Cherished Yoruba endearment.' },
+      'Nigerian Pidgin': { trans: 'My sweetheart / Person wey my heart choose', pron: 'my sweet-hart', notes: 'Warm Pidgin endearment.' },
+      Hausa: { trans: 'Masoyiyata (to female) / Masoyina (to male)', pron: 'mah-soh-yee-YAH-tah', notes: 'Beloved in Hausa.' },
+      isiZulu: { trans: 'Sithandwa sami', pron: 'see-TAHN-dwah SAH-mee', notes: 'Beloved sweetheart in Zulu.' },
+    },
+  },
+
   // Clinical compound triage: Swahili + English code-switch
   'mgonjwa ana homa kali sana na joint pains bado anatapika non-stop since asubuhi': {
     sourceLang: 'Swahili / Sheng Code-Switch',

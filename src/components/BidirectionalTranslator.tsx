@@ -127,9 +127,9 @@ export const BidirectionalTranslator: React.FC<BidirectionalTranslatorProps> = (
       const grokKey = localStorage.getItem('grok_api_key');
       const geminiKey = localStorage.getItem('gemini_api_key');
 
-      // Abort controller with 3.5s timeout for snappy UI
+      // Abort controller with 8s timeout for serverless cold-start & live AI reasoning
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
       const res = await fetch('/api/translate', {
         method: 'POST',
@@ -155,7 +155,15 @@ export const BidirectionalTranslator: React.FC<BidirectionalTranslatorProps> = (
         const contentType = res.headers.get('content-type') || '';
         if (contentType.includes('application/json')) {
           const data = await res.json();
-          if (data && data.translatedText) {
+          // Verify it's an actual translation and not an untranslated echo
+          const isIdenticalEcho =
+            data?.translatedText &&
+            data.translatedText.trim().toLowerCase() === textToTranslate.trim().toLowerCase() &&
+            targetLang.toLowerCase() !== sourceLang.toLowerCase() &&
+            !targetLang.toLowerCase().includes('english') &&
+            /^[a-zA-Z\s]+$/.test(textToTranslate.trim());
+
+          if (data && data.translatedText && !isIdenticalEcho) {
             setResult(data);
             resolved = true;
           }
