@@ -124,17 +124,19 @@ export const BidirectionalTranslator: React.FC<BidirectionalTranslatorProps> = (
     let resolved = false;
 
     try {
+      const openRouterKey = localStorage.getItem('openrouter_api_key') || '';
       const grokKey = localStorage.getItem('grok_api_key');
       const geminiKey = localStorage.getItem('gemini_api_key');
 
-      // Abort controller with 8s timeout for serverless cold-start & live AI reasoning
+      // Abort controller with 15s timeout for deep live AI polyglot reasoning
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const res = await fetch('/api/translate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(openRouterKey ? { 'x-openrouter-api-key': openRouterKey } : {}),
           ...(grokKey ? { 'x-grok-api-key': grokKey } : {}),
           ...(geminiKey ? { 'x-gemini-api-key': geminiKey } : {}),
         },
@@ -143,6 +145,7 @@ export const BidirectionalTranslator: React.FC<BidirectionalTranslatorProps> = (
           sourceLang: sourceLang,
           targetLang: targetLang,
           context: contextMode,
+          openRouterApiKey: openRouterKey || undefined,
           grokApiKey: grokKey || undefined,
           geminiApiKey: geminiKey || undefined,
         }),
@@ -275,6 +278,14 @@ export const BidirectionalTranslator: React.FC<BidirectionalTranslatorProps> = (
               <Languages className="w-5 h-5 text-[#F27D26]" />
             </div>
             <div>
+              <div className="flex items-center space-x-2 mb-1">
+                <span className="text-[9px] font-mono font-black uppercase tracking-widest bg-black text-[#F27D26] px-1.5 py-0.5 border border-black">
+                  MAJOR MODEL: Sahara-v2.4 Polyglot
+                </span>
+                <span className="text-[10px] text-stone-600 font-mono">
+                  Supported by OpenRouter AI (Llama 3.3 70B) & Grok
+                </span>
+              </div>
               <h2 className="text-lg font-serif font-bold italic text-black">
                 Bidirectional African Language & Code-Switch Translation Studio
               </h2>
@@ -544,19 +555,23 @@ export const BidirectionalTranslator: React.FC<BidirectionalTranslatorProps> = (
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-black/10 text-[10px] font-mono text-stone-600">
-            <div className="flex items-center space-x-2">
-              <span>
-                Engine: <strong className="text-black">{result?.engine || 'Sahara Polyglot Engine'}</strong>
+            <div className="flex items-center flex-wrap gap-2">
+              <span className="px-2 py-0.5 bg-black text-white font-bold flex items-center space-x-1">
+                <span className="text-[#F27D26]">MAJOR:</span>
+                <span>Sahara-v2.4 Core</span>
+              </span>
+              <span className="px-1.5 py-0.5 bg-white text-stone-700 border border-black/20 font-medium">
+                Supporting: <strong className="text-black">{result?.engine || 'OpenRouter AI (Llama 3.3 70B)'}</strong>
               </span>
               {result?.isClientFallback && (
                 <span className="px-1.5 py-0.5 bg-amber-50 text-amber-900 border border-amber-300 font-bold flex items-center space-x-1">
                   <Zap className="w-2.5 h-2.5 text-[#F27D26]" />
-                  <span>Vercel / In-Browser Engine</span>
+                  <span>Sahara Offline Corpus</span>
                 </span>
               )}
               {result?.isLiveAi && (
                 <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold">
-                  🟢 Live AI Cloud
+                  🟢 Live Multi-Model Active
                 </span>
               )}
             </div>

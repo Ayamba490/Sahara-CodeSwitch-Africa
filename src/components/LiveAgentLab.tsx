@@ -111,16 +111,18 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
     let resolved = false;
 
     try {
+      const openRouterKey = localStorage.getItem('openrouter_api_key') || '';
       const grokKey = localStorage.getItem('grok_api_key');
       const geminiKey = localStorage.getItem('gemini_api_key');
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
       const res = await fetch('/api/translate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(openRouterKey ? { 'x-openrouter-api-key': openRouterKey } : {}),
           ...(grokKey ? { 'x-grok-api-key': grokKey } : {}),
           ...(geminiKey ? { 'x-gemini-api-key': geminiKey } : {}),
         },
@@ -129,6 +131,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
           sourceLang: 'Auto-Detect',
           targetLang: targetLanguage,
           context: activeSample.category || 'clinical',
+          openRouterApiKey: openRouterKey || undefined,
           grokApiKey: grokKey || undefined,
           geminiApiKey: geminiKey || undefined,
         }),
@@ -551,18 +554,24 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
         (targetText && targetText.length > 0 ? targetText : activeSample.groundTruth);
 
       // Step 2: Layer 2 Code-Switch Intelligence & Layer 3 Action
+      const openRouterKey = localStorage.getItem('openrouter_api_key') || '';
       const grokKey = localStorage.getItem('grok_api_key');
+      const geminiKey = localStorage.getItem('gemini_api_key');
       const response = await fetch('/api/codeswitch/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(openRouterKey ? { 'x-openrouter-api-key': openRouterKey } : {}),
           ...(grokKey ? { 'x-grok-api-key': grokKey } : {}),
+          ...(geminiKey ? { 'x-gemini-api-key': geminiKey } : {}),
         },
         body: JSON.stringify({
           transcript: transcriptToProcess,
           languagePair: selectedLanguage,
           domain: categoryPreset || (targetText ? 'general' : activeSample.category.toLowerCase()),
+          openRouterApiKey: openRouterKey || undefined,
           grokApiKey: grokKey || undefined,
+          geminiApiKey: geminiKey || undefined,
         }),
       });
 
@@ -709,10 +718,16 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest bg-black text-white px-2.5 py-1.5">
-              Sahara-v2.4
-            </span>
-            <span className="text-[10px] font-bold uppercase tracking-widest bg-[#FAF8F5] text-stone-900 border border-black/30 px-2.5 py-1.5 font-mono">
+            <div className="flex items-center space-x-1.5 px-3 py-1 bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_#F27D26]">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[10px] font-mono font-black text-[#F27D26] uppercase tracking-wider">MAJOR MODEL:</span>
+              <span className="text-xs font-bold font-mono">Sahara-v2.4 Voice</span>
+            </div>
+            <div className="flex items-center space-x-1.5 px-2.5 py-1 bg-[#FAF8F5] text-stone-900 border border-black/30 font-mono text-[10px]">
+              <span className="text-stone-500 font-bold">SUPPORTING AI:</span>
+              <span className="font-bold text-stone-800">OpenRouter (Llama 3.3 70B) & Grok</span>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest bg-[#FAF8F5] text-stone-900 border border-black/30 px-2.5 py-1 font-mono">
               13 Pairs
             </span>
           </div>
@@ -721,6 +736,19 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
         <p className="text-sm text-stone-700 max-w-4xl leading-relaxed">
           The flagship clinical implementation demonstrating why voice AI must not force Africans to choose one language. Experience end-to-end African code-switching across clinical intake (AfriswitchCare), rural health triage, and downstream EHR automation.
         </p>
+
+        {/* Model Architecture Callout */}
+        <div className="bg-[#FAF8F5] border border-black/20 p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+          <div className="flex items-center space-x-2">
+            <span className="px-2 py-0.5 bg-black text-white text-[10px] font-bold uppercase">Pipeline Architecture</span>
+            <span className="text-stone-700">
+              <strong className="text-black">Sahara-v2.4 (Sahara Voice)</strong> is the Major Model for Acoustic ASR & Code-Switch Boundaries &bull; <span className="text-stone-600">OpenRouter AI / Grok provide supporting clinical NLP enrichment</span>
+            </span>
+          </div>
+          <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 border border-emerald-300">
+            Intron Voice v2.4 Active
+          </span>
+        </div>
 
         {/* Clinical Case Scenarios */}
         <div className="pt-2 border-t border-black/10">
@@ -1171,15 +1199,16 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
               )}
             </div>
 
-            {/* Layer 1: Speech (Sahara ASR Engine) */}
+            {/* Layer 1: Speech (Sahara ASR Engine - Major Model) */}
             <div className="space-y-2 pt-1">
               <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-black/15">
                 <div className="flex items-center space-x-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-black text-white px-2 py-0.5">
-                    Layer 1: 🎙️ Speech
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-black text-white px-2 py-0.5 flex items-center space-x-1.5">
+                    <span className="text-[#F27D26] font-black">MAJOR MODEL</span>
+                    <span>• Layer 1: 🎙️ Voice ASR</span>
                   </span>
                   <span className="text-xs font-serif font-bold italic text-black">
-                    Sahara Voice ASR Output
+                    Sahara-v2.4 African Acoustic Backbone
                   </span>
                 </div>
 
@@ -1259,17 +1288,18 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider bg-[#F27D26] text-white px-2 py-0.5">
-                    Layer 2: 🧠 Code-Switch Intelligence
+                    Layer 2: 🧠 Code-Switch Matrix Analysis
                   </span>
-                  {llmEngineInfo?.engine && (
-                    <span className="text-[10px] font-mono font-bold bg-black text-white px-2 py-0.5 border border-black/20 flex items-center space-x-1">
-                      <Cpu className="w-3 h-3 text-[#F27D26]" />
-                      <span>{llmEngineInfo.engine}</span>
-                      {llmEngineInfo.latencyMs ? <span className="text-stone-400">({llmEngineInfo.latencyMs}ms)</span> : null}
-                    </span>
-                  )}
+                  <span className="text-[10px] font-mono bg-black text-white px-2 py-0.5 font-bold">
+                    Sahara-v2.4 Core
+                  </span>
+                  <span className="text-[10px] font-mono font-bold bg-white text-stone-700 px-2 py-0.5 border border-black/20 flex items-center space-x-1">
+                    <Cpu className="w-3 h-3 text-[#F27D26]" />
+                    <span>Supporting: {llmEngineInfo?.engine || 'OpenRouter AI (Llama 3.3 70B)'}</span>
+                    {llmEngineInfo?.latencyMs ? <span className="text-stone-400">({llmEngineInfo.latencyMs}ms)</span> : null}
+                  </span>
                   <span className="text-xs font-serif font-bold italic text-black">
-                    Token Matrix & Dialect Boundary Tagging
+                    Dialect Matrix & Boundary Extraction
                   </span>
                 </div>
 

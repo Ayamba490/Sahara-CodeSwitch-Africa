@@ -787,7 +787,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { text, sourceLang, targetLang, context, grokApiKey, geminiApiKey } = req.body || {};
+  const { text, sourceLang, targetLang, context, openRouterApiKey, grokApiKey, geminiApiKey } = req.body || {};
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
     return res.status(400).json({ error: 'Text is required for translation.' });
   }
@@ -847,9 +847,16 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  const headerOpenRouterKey = (req.headers['x-openrouter-api-key'] as string) || '';
   const headerGrokKey = (req.headers['x-grok-api-key'] as string) || '';
   const headerGeminiKey = (req.headers['x-gemini-api-key'] as string) || '';
 
+  const resolvedOpenRouterKey =
+    openRouterApiKey ||
+    headerOpenRouterKey ||
+    process.env.OPENROUTER_API_KEY ||
+    process.env.OPEN_ROUTER_API_KEY ||
+    '';
   const resolvedGrokKey = grokApiKey || headerGrokKey || process.env.GROK_API_KEY || process.env.GROQ_API_KEY || process.env.XAI_API_KEY;
   const resolvedGeminiKey = geminiApiKey || headerGeminiKey || process.env.GEMINI_API_KEY;
 
@@ -885,7 +892,75 @@ Return ONLY a valid JSON object (no markdown, no backticks):
   "confidence": 0.99
 }`;
 
-  // 1. Try Groq (ultra-fast <400ms neural inference) or xAI Grok if key exists
+  // 1. Try OpenRouter AI (Llama 3.3 70B, Qwen 2.5 72B, DeepSeek)
+  if (resolvedOpenRouterKey && resolvedOpenRouterKey.trim().length > 0) {
+    const cleanKey = resolvedOpenRouterKey.trim();
+    const openRouterModels = [
+      'meta-llama/llama-3.3-70b-instruct',
+      'qwen/qwen-2.5-72b-instruct',
+      'deepseek/deepseek-chat',
+      'openrouter/auto',
+    ];
+
+    for (const model of openRouterModels) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 16000);
+
+        const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${cleanKey}`,
+            'HTTP-Referer': 'https://ai.studio',
+            'X-Title': 'Sahara CodeSwitch Africa Studio',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an elite African polyglot linguist. Always respond with raw valid JSON only with keys: translatedText, sourceLanguage, targetLanguage, pronunciationGuide, literalBreakdown, linguisticNotes, detectedCodeSwitching, confidence.',
+              },
+              { role: 'user', content: translationPrompt },
+            ],
+            temperature: 0.2,
+            response_format: { type: 'json_object' },
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (orRes.ok) {
+          const data: any = await orRes.json();
+          const content = data.choices?.[0]?.message?.content || '';
+          if (content.trim()) {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            const jsonStr = jsonMatch ? jsonMatch[0] : content.replace(/```json/g, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.translatedText) {
+              return res.json({
+                success: true,
+                executionMode: 'LIVE_OPENROUTER_AI',
+                isLiveAi: true,
+                provider: 'OpenRouter AI',
+                engine: `OpenRouter (${data.model || model})`,
+                ...parsed,
+              });
+            }
+          }
+        } else {
+          const errText = await orRes.text().catch(() => '');
+          console.warn(`[OpenRouter API] Model ${model} returned HTTP ${orRes.status}:`, errText);
+          if (orRes.status === 401 || orRes.status === 402) break;
+        }
+      } catch (orErr: any) {
+        console.warn(`[OpenRouter API] Call to ${model} failed:`, orErr?.message);
+      }
+    }
+  }
+
+  // 2. Try Groq (ultra-fast <400ms neural inference) or xAI Grok if key exists
   if (resolvedGrokKey && resolvedGrokKey.trim().length > 0) {
     const cleanKey = resolvedGrokKey.trim();
     const isGroq = cleanKey.startsWith('gsk_') || Boolean(process.env.GROQ_API_KEY);

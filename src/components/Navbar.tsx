@@ -5,16 +5,19 @@ import {
   Layers,
   Sparkles,
   Languages,
+  KeyRound,
 } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  onOpenKeyModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
+  onOpenKeyModal,
 }) => {
   const navItems = [
     { id: 'live-lab', label: 'Live Speech Lab', icon: Mic, badge: 'Sahara ASR' },
@@ -101,12 +104,33 @@ export const Navbar: React.FC<NavbarProps> = ({
             })}
           </nav>
 
-          {/* Right Badge: Acoustic Engine Version */}
+          {/* Right Badges & Controls */}
           <div className="hidden sm:flex items-center space-x-2">
-            <div className="flex items-center space-x-2 px-3 py-1.5 text-xs font-mono font-bold uppercase tracking-wider bg-[#FAF8F5] text-black border border-black/20">
-              <Sparkles className="w-3 h-3 text-[#F27D26]" />
-              <span className="text-[11px]">Sahara-v2.4 Active</span>
+            {/* Flagship Major Model Badge */}
+            <div
+              className="flex items-center space-x-2 px-3 py-1.5 text-xs font-mono font-bold uppercase tracking-wider bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_#F27D26]"
+              title="Sahara-v2.4 (Sahara Voice) is the flagship major model for African speech, acoustics, and code-switching"
+            >
+              <Mic className="w-3.5 h-3.5 text-[#F27D26]" />
+              <div className="flex flex-col items-start leading-tight">
+                <span className="text-[8px] text-[#F27D26] font-black tracking-widest">MAJOR MODEL</span>
+                <span className="text-[11px] font-bold tracking-tight">Sahara-v2.4 Voice</span>
+              </div>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" title="Core Engine Active"></span>
             </div>
+
+            {/* Supporting Models & Gateway Settings Button */}
+            <button
+              onClick={onOpenKeyModal}
+              title="Configure Supporting Models (OpenRouter AI, Grok, Gemini) and Sahara Voice Credentials"
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 text-xs font-mono font-bold uppercase tracking-wider bg-white hover:bg-[#FAF8F5] text-black border border-black/30 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(242,125,38,1)] cursor-pointer"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-stone-600" />
+              <div className="flex flex-col items-start text-left leading-tight">
+                <span className="text-[8px] text-stone-500 font-bold">SUPPORTING AI</span>
+                <span className="text-[10px] text-stone-800 font-bold">+OpenRouter / Grok</span>
+              </div>
+            </button>
           </div>
         </div>
 

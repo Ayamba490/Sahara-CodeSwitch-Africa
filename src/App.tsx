@@ -4,10 +4,12 @@ import { LiveAgentLab } from './components/LiveAgentLab';
 import { BenchmarkSuite } from './components/BenchmarkSuite';
 import { CategorySolutions } from './components/CategorySolutions';
 import { BidirectionalTranslator } from './components/BidirectionalTranslator';
+import { KeyModal } from './components/KeyModal';
 import { ChallengeCategory } from './types';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('live-lab');
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState<boolean>(false);
 
   const handleSelectCategoryForLab = (category: ChallengeCategory) => {
     setActiveTab('live-lab');
@@ -19,6 +21,7 @@ export default function App() {
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        onOpenKeyModal={() => setIsKeyModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -33,6 +36,15 @@ export default function App() {
           <CategorySolutions onSelectCategoryForLab={handleSelectCategoryForLab} />
         )}
       </main>
+
+      {/* API Key and Model Gateway Configuration Modal */}
+      <KeyModal
+        isOpen={isKeyModalOpen}
+        onClose={() => setIsKeyModalOpen(false)}
+        currentKey=""
+        onSaveKey={() => {}}
+        initialTab="openrouter"
+      />
 
       {/* Footer */}
       <footer className="border-t-2 border-black bg-[#FDFCFB] py-6 px-4 sm:px-6 lg:px-8 mt-12 text-xs text-[#1A1A1A]">

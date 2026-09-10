@@ -21,25 +21,37 @@ async function startServer() {
     }
   };
 
-  // Unified Multi-LLM Reasoning Engine (xAI Grok & Google Gemini)
+  // OpenRouter API Key configured via environment variable or client header
+  const DEFAULT_OPENROUTER_KEY =
+    process.env.OPENROUTER_API_KEY ||
+    process.env.OPEN_ROUTER_API_KEY ||
+    '';
+
+  // Unified Multi-LLM Reasoning Engine (OpenRouter AI, xAI Grok & Google Gemini)
   async function callUnifiedLlmReasoning({
     prompt,
     systemPrompt,
+    openRouterApiKey,
     grokApiKey,
     geminiApiKey,
     preferredProvider,
   }: {
     prompt: string;
     systemPrompt?: string;
+    openRouterApiKey?: string;
     grokApiKey?: string;
     geminiApiKey?: string;
-    preferredProvider?: 'auto' | 'grok' | 'gemini';
+    preferredProvider?: 'auto' | 'openrouter' | 'grok' | 'gemini';
   }): Promise<{
     text: string;
     provider: string;
     engine: string;
     latencyMs: number;
   } | null> {
+    const resolvedOpenRouterKey =
+      openRouterApiKey ||
+      DEFAULT_OPENROUTER_KEY;
+
     const resolvedGrokKey =
       grokApiKey ||
       process.env.GROK_API_KEY ||
@@ -50,6 +62,65 @@ async function startServer() {
       process.env.GEMINI_API_KEY;
 
     const startTime = Date.now();
+
+    // Helper: Execute OpenRouter AI (Llama 3.3 70B, Qwen 2.5 72B, DeepSeek)
+    const tryOpenRouter = async (): Promise<{ text: string; engine: string; provider: string } | null> => {
+      if (!resolvedOpenRouterKey || resolvedOpenRouterKey.trim().length === 0) return null;
+      const cleanKey = resolvedOpenRouterKey.trim();
+      const models = [
+        'meta-llama/llama-3.3-70b-instruct',
+        'qwen/qwen-2.5-72b-instruct',
+        'deepseek/deepseek-chat',
+        'openrouter/auto',
+      ];
+
+      for (const model of models) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 16000);
+
+          const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${cleanKey}`,
+              'HTTP-Referer': 'https://ai.studio',
+              'X-Title': 'Sahara CodeSwitch Africa Studio',
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+                { role: 'user', content: prompt },
+              ],
+              temperature: 0.2,
+              response_format: { type: 'json_object' },
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+
+          if (res.ok) {
+            const data: any = await res.json();
+            const content = data.choices?.[0]?.message?.content || '';
+            if (content.trim()) {
+              return {
+                text: content,
+                engine: `OpenRouter (${data.model || model})`,
+                provider: 'OpenRouter AI',
+              };
+            }
+          } else {
+            const errText = await res.text().catch(() => '');
+            console.warn(`[OpenRouter API] Model ${model} returned HTTP ${res.status}:`, errText);
+            if (res.status === 401 || res.status === 402) break;
+          }
+        } catch (netErr: any) {
+          console.warn(`[OpenRouter API] Call to ${model} failed:`, netErr?.message);
+        }
+      }
+      return null;
+    };
 
     // Helper: Execute fast LLM (Groq LP or xAI Grok)
     const tryFastLlm = async (): Promise<{ text: string; engine: string; provider: string } | null> => {
@@ -185,46 +256,38 @@ async function startServer() {
     };
 
     // Routing:
-    // If fast LLM (Groq or xAI) key is present, invoke it first for sub-second responses;
-    // fallback immediately to Gemini if needed. If preferred is explicitly gemini, invert order.
+    // Sahara-v2.4 is the Major Model; downstream LLMs (OpenRouter, Grok, Gemini) act as supporting coprocessors.
+    const enrichResult = (r: { text: string; engine: string; provider: string }) => ({
+      ...r,
+      majorModel: 'Sahara-v2.4 (African Voice & Code-Switch Core)',
+      supportingModel: r.engine,
+      latencyMs: Date.now() - startTime,
+    });
+
     if (preferredProvider === 'gemini') {
       const geminiRes = await tryGemini();
-      if (geminiRes) {
-        return {
-          text: geminiRes.text,
-          provider: geminiRes.provider,
-          engine: geminiRes.engine,
-          latencyMs: Date.now() - startTime,
-        };
-      }
+      if (geminiRes) return enrichResult(geminiRes);
+      const orRes = await tryOpenRouter();
+      if (orRes) return enrichResult(orRes);
       const fastRes = await tryFastLlm();
-      if (fastRes) {
-        return {
-          text: fastRes.text,
-          provider: fastRes.provider,
-          engine: fastRes.engine,
-          latencyMs: Date.now() - startTime,
-        };
-      }
-    } else {
+      if (fastRes) return enrichResult(fastRes);
+    } else if (preferredProvider === 'grok') {
       const fastRes = await tryFastLlm();
-      if (fastRes) {
-        return {
-          text: fastRes.text,
-          provider: fastRes.provider,
-          engine: fastRes.engine,
-          latencyMs: Date.now() - startTime,
-        };
-      }
+      if (fastRes) return enrichResult(fastRes);
+      const orRes = await tryOpenRouter();
+      if (orRes) return enrichResult(orRes);
       const geminiRes = await tryGemini();
-      if (geminiRes) {
-        return {
-          text: geminiRes.text,
-          provider: geminiRes.provider,
-          engine: geminiRes.engine,
-          latencyMs: Date.now() - startTime,
-        };
-      }
+      if (geminiRes) return enrichResult(geminiRes);
+    } else {
+      // Default / 'openrouter' / 'auto':
+      // OpenRouter first (powers state-of-the-art African polyglot model with user's key),
+      // falling back to Groq / Gemini.
+      const orRes = await tryOpenRouter();
+      if (orRes) return enrichResult(orRes);
+      const fastRes = await tryFastLlm();
+      if (fastRes) return enrichResult(fastRes);
+      const geminiRes = await tryGemini();
+      if (geminiRes) return enrichResult(geminiRes);
     }
 
     return null;
@@ -232,23 +295,63 @@ async function startServer() {
 
   // Health check endpoint
   app.get('/api/health', (req, res) => {
+    const hasOpenRouterKey = Boolean(
+      process.env.OPENROUTER_API_KEY ||
+      process.env.OPEN_ROUTER_API_KEY ||
+      DEFAULT_OPENROUTER_KEY
+    );
+    const hasSaharaKey = Boolean(process.env.SAHARA_API_KEY || process.env.INTRON_API_KEY);
+    const hasGrokKey = Boolean(process.env.GROK_API_KEY || process.env.XAI_API_KEY);
+    const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY);
+
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       service: 'Sahara CodeSwitch Africa Studio API',
-      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-      hasGrokKey: Boolean(process.env.GROK_API_KEY || process.env.XAI_API_KEY),
-      hasSaharaKey: Boolean(process.env.SAHARA_API_KEY || process.env.INTRON_API_KEY),
+      majorModel: {
+        id: 'sahara-v2.4',
+        name: 'Sahara-v2.4 Voice & Code-Switch Core',
+        role: 'MAJOR_MODEL',
+        provider: 'Intron Health / Sahara AI',
+        configured: hasSaharaKey,
+        fallbackMode: 'Calibrated Afriswitch Evaluation Benchmark',
+      },
+      supportingModels: [
+        {
+          id: 'openrouter',
+          name: 'OpenRouter AI (Llama 3.3 70B / Qwen 2.5 72B / DeepSeek)',
+          role: 'SUPPORTING_LLM',
+          active: hasOpenRouterKey,
+        },
+        {
+          id: 'grok',
+          name: 'xAI Grok & Groq LP Neural Engine',
+          role: 'SUPPORTING_LLM',
+          active: hasGrokKey,
+        },
+        {
+          id: 'gemini',
+          name: 'Google Gemini Flash',
+          role: 'SUPPORTING_LLM',
+          active: hasGeminiKey,
+        },
+      ],
+      hasOpenRouterKey,
+      hasGeminiKey,
+      hasGrokKey,
+      hasSaharaKey,
       llmProviders: [
-        ...(process.env.GROK_API_KEY || process.env.XAI_API_KEY ? ['xAI Grok (grok-2 / grok-beta)'] : []),
-        ...(process.env.GEMINI_API_KEY ? ['Gemini 3.8 Flash'] : []),
+        ...(hasOpenRouterKey ? ['OpenRouter AI (Llama 3.3 70B / Qwen 2.5 72B / DeepSeek)'] : []),
+        ...(hasGrokKey ? ['xAI Grok / Groq LP Neural Engine'] : []),
+        ...(hasGeminiKey ? ['Google Gemini 3.8 Flash'] : []),
       ],
     });
   });
 
   // Code-Switch Analysis & Agentic Extractor
   app.post('/api/codeswitch/analyze', async (req, res) => {
-    const { transcript, languagePair, domain, sampleId, grokApiKey, geminiApiKey, preferredProvider } = req.body;
+    const { transcript, languagePair, domain, sampleId, openRouterApiKey, grokApiKey, geminiApiKey, preferredProvider } = req.body;
+    const clientOpenRouterKey = openRouterApiKey || (req.headers['x-openrouter-api-key'] as string);
     const clientGrokKey = grokApiKey || (req.headers['x-grok-api-key'] as string);
     const clientGeminiKey = geminiApiKey || (req.headers['x-gemini-api-key'] as string);
 
@@ -290,6 +393,7 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
     const llmResult = await callUnifiedLlmReasoning({
       prompt,
       systemPrompt,
+      openRouterApiKey: clientOpenRouterKey,
       grokApiKey: clientGrokKey,
       geminiApiKey: clientGeminiKey,
       preferredProvider,
@@ -1006,7 +1110,8 @@ const SERVER_AFRICAN_IDIOMS: Record<string, { trans: string; pron: string; notes
 
   // Bidirectional African Language & Code-Switch Translation Endpoint
   app.post('/api/translate', async (req, res) => {
-    const { text, sourceLang, targetLang, context, grokApiKey, geminiApiKey, preferredProvider } = req.body;
+    const { text, sourceLang, targetLang, context, openRouterApiKey, grokApiKey, geminiApiKey, preferredProvider } = req.body;
+    const clientOpenRouterKey = openRouterApiKey || (req.headers['x-openrouter-api-key'] as string);
     const clientGrokKey = grokApiKey || (req.headers['x-grok-api-key'] as string);
     const clientGeminiKey = geminiApiKey || (req.headers['x-gemini-api-key'] as string);
 
@@ -1079,6 +1184,7 @@ Return ONLY a valid JSON object (no markdown, no backticks):
     const llmResult = await callUnifiedLlmReasoning({
       prompt,
       systemPrompt,
+      openRouterApiKey: clientOpenRouterKey,
       grokApiKey: clientGrokKey,
       geminiApiKey: clientGeminiKey,
       preferredProvider,
@@ -1825,6 +1931,61 @@ Return ONLY a valid JSON object (no markdown, no backticks):
         valid: false,
         pingMs: Date.now() - startPing,
         message: `Network error connecting to api.x.ai: ${e?.message}`,
+      });
+    }
+  });
+
+  // Verify OpenRouter API Key Handshake
+  app.post('/api/openrouter/verify-key', async (req, res) => {
+    const key =
+      req.body.apiKey ||
+      (req.headers['x-openrouter-api-key'] as string) ||
+      DEFAULT_OPENROUTER_KEY;
+
+    if (!key || key.trim().length === 0) {
+      return res.status(400).json({
+        valid: false,
+        message: 'No OpenRouter API key provided. Please provide an OpenRouter API key (sk-or-v1-...).',
+      });
+    }
+
+    const startPing = Date.now();
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
+        headers: {
+          Authorization: `Bearer ${key.trim()}`,
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      const pingMs = Date.now() - startPing;
+      if (response.ok) {
+        const data: any = await response.json();
+        return res.json({
+          valid: true,
+          pingMs,
+          accountData: data.data,
+          message: `OpenRouter AI handshake successful (${pingMs}ms latency)! Model routing enabled (Llama 3.3 70B, Qwen 2.5 72B, DeepSeek).`,
+        });
+      } else {
+        const errJson: any = await response.json().catch(() => null);
+        const errMsg = errJson?.error || (await response.text().catch(() => ''));
+        return res.json({
+          valid: false,
+          pingMs,
+          status: response.status,
+          message: `OpenRouter API rejected key (HTTP ${response.status}): ${typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg)}`,
+        });
+      }
+    } catch (e: any) {
+      return res.json({
+        valid: false,
+        pingMs: Date.now() - startPing,
+        message: `Network error connecting to openrouter.ai: ${e?.message}`,
       });
     }
   });
