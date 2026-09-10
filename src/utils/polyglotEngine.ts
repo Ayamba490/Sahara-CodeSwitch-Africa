@@ -342,6 +342,220 @@ const PHRASEBOOK: Record<string, PhraseEntry> = {
   },
 };
 
+// Rich African Idiomatic Multi-Word Expressions for bidirectional translation
+const AFRICAN_TO_ENGLISH_PHRASES: Record<string, { trans: string; pron: string; notes: string; lang: string }> = {
+  'oli otya nno gyebaleko musawo waffe': {
+    trans: 'How are you? Thank you for your work, our doctor.',
+    pron: 'OH-lee oh-TYAH nnoh? JAY-bah-leh-koh moo-SAH-woh WAHF-feh',
+    notes: 'Courteous Luganda greeting addressed to a medical doctor or clinician. "Gyebaleko" is an essential Ugandan cultural acknowledgment of dedication to service.',
+    lang: 'Luganda',
+  },
+  'oli otya nno gyebaleko musawo': {
+    trans: 'How are you? Thank you for your work, doctor.',
+    pron: 'OH-lee oh-TYAH nnoh? JAY-bah-leh-koh moo-SAH-woh',
+    notes: 'Respectful Luganda greeting to a doctor.',
+    lang: 'Luganda',
+  },
+  'oli otya nno gyebaleko': {
+    trans: 'How are you? Well done / Thank you for your work.',
+    pron: 'OH-lee oh-TYAH nnoh? JAY-bah-leh-koh',
+    notes: 'Standard respectful Luganda greeting acknowledging labor or effort.',
+    lang: 'Luganda',
+  },
+  'oli otya gyebaleko musawo waffe': {
+    trans: 'How are you? Thank you for your work, our doctor.',
+    pron: 'OH-lee oh-TYAH JAY-bah-leh-koh moo-SAH-woh WAHF-feh',
+    notes: 'Respectful greeting to a healthcare provider in Luganda.',
+    lang: 'Luganda',
+  },
+  'oli otya gyebaleko musawo': {
+    trans: 'How are you? Thank you for your service, doctor.',
+    pron: 'OH-lee oh-TYAH JAY-bah-leh-koh moo-SAH-woh',
+    notes: 'Luganda clinical greeting.',
+    lang: 'Luganda',
+  },
+  'oli otya gyebaleko': {
+    trans: 'How are you? Thank you for your work.',
+    pron: 'OH-lee oh-TYAH JAY-bah-leh-koh',
+    notes: 'Polite greeting recognizing hard work.',
+    lang: 'Luganda',
+  },
+  'oli otya nno musawo waffe': {
+    trans: 'How are you, our doctor?',
+    pron: 'OH-lee oh-TYAH nnoh moo-SAH-woh WAHF-feh',
+    notes: 'Polite greeting to healthcare worker.',
+    lang: 'Luganda',
+  },
+  'oli otya musawo waffe': {
+    trans: 'How are you, our doctor?',
+    pron: 'OH-lee oh-TYAH moo-SAH-woh WAHF-feh',
+    notes: 'Direct respectful greeting in Luganda.',
+    lang: 'Luganda',
+  },
+  'oli otya nno musawo': {
+    trans: 'How are you, doctor?',
+    pron: 'OH-lee oh-TYAH nnoh moo-SAH-woh',
+    notes: 'Polite greeting to doctor in Luganda.',
+    lang: 'Luganda',
+  },
+  'oli otya musawo': {
+    trans: 'How are you, doctor?',
+    pron: 'OH-lee oh-TYAH moo-SAH-woh',
+    notes: 'Direct greeting to doctor in Luganda.',
+    lang: 'Luganda',
+  },
+  'oli otya nno': {
+    trans: 'How are you doing?',
+    pron: 'OH-lee oh-TYAH nnoh',
+    notes: 'Standard polite greeting in Buganda.',
+    lang: 'Luganda',
+  },
+  'oli otya': {
+    trans: 'How are you?',
+    pron: 'OH-lee oh-TYAH',
+    notes: 'Universal Luganda greeting.',
+    lang: 'Luganda',
+  },
+  'gyebaleko musawo waffe': {
+    trans: 'Thank you for your service, our doctor.',
+    pron: 'JAY-bah-leh-koh moo-SAH-woh WAHF-feh',
+    notes: 'Cultural expression thanking health workers for their care.',
+    lang: 'Luganda',
+  },
+  'gyebaleko musawo': {
+    trans: 'Thank you for your work, doctor.',
+    pron: 'JAY-bah-leh-koh moo-SAH-woh',
+    notes: 'Appreciation greeting for clinical staff.',
+    lang: 'Luganda',
+  },
+  'gyebaleko mwattu': {
+    trans: 'Thank you for your work, please.',
+    pron: 'JAY-bah-leh-koh MWAHT-too',
+    notes: 'Courteous appreciation.',
+    lang: 'Luganda',
+  },
+  'gyebaleko bannange': {
+    trans: 'Well done, my friends.',
+    pron: 'JAY-bah-leh-koh bahn-NAHN-geh',
+    notes: 'Warm collective appreciation.',
+    lang: 'Luganda',
+  },
+  'gyebaleko': {
+    trans: 'Well done / Thank you for your work.',
+    pron: 'JAY-bah-leh-koh',
+    notes: 'Universal Luganda expression acknowledging effort and diligence.',
+    lang: 'Luganda',
+  },
+  'gyebale ko': {
+    trans: 'Well done / Thank you for your work.',
+    pron: 'JAY-bah-leh-koh',
+    notes: 'Dialect variant of gyebaleko.',
+    lang: 'Luganda',
+  },
+  'musawo waffe': {
+    trans: 'our doctor',
+    pron: 'moo-SAH-woh WAHF-feh',
+    notes: 'Possessive clinical noun phrase in Luganda.',
+    lang: 'Luganda',
+  },
+  'musawo wange': {
+    trans: 'my doctor',
+    pron: 'moo-SAH-woh WAHN-geh',
+    notes: 'Possessive clinical noun phrase in Luganda.',
+    lang: 'Luganda',
+  },
+  'omulwadde waffe': {
+    trans: 'our patient',
+    pron: 'oh-mool-WAHD-deh WAHF-feh',
+    notes: 'Clinical patient reference.',
+    lang: 'Luganda',
+  },
+  'omulwadde alina omusujja omungi': {
+    trans: 'The patient has a very high fever.',
+    pron: 'oh-mool-WAHD-deh ah-LEE-nah oh-moo-SOOD-jah oh-MOON-jee',
+    notes: 'Clinical pyrexia triage in Luganda.',
+    lang: 'Luganda',
+  },
+  'wasuze otya nno': {
+    trans: 'Good morning / How was your night?',
+    pron: 'wah-SOO-zeh oh-TYAH nnoh',
+    notes: 'Standard morning salutation in Luganda.',
+    lang: 'Luganda',
+  },
+  'wasuze otya': {
+    trans: 'Good morning',
+    pron: 'wah-SOO-zeh oh-TYAH',
+    notes: 'Morning greeting in Luganda.',
+    lang: 'Luganda',
+  },
+  'sula bulungi': {
+    trans: 'Good night / Sleep peacefully',
+    pron: 'SOO-lah boo-LOON-jee',
+    notes: 'Night parting in Luganda.',
+    lang: 'Luganda',
+  },
+  'siiba bulungi': {
+    trans: 'Have a good day',
+    pron: 'SEE-bah boo-LOON-jee',
+    notes: 'Daytime farewell in Luganda.',
+    lang: 'Luganda',
+  },
+  'weebale nnyo': {
+    trans: 'Thank you very much',
+    pron: 'weh-BAH-leh nn-YOH',
+    notes: 'Deep expression of gratitude.',
+    lang: 'Luganda',
+  },
+  'weebale': {
+    trans: 'Thank you',
+    pron: 'weh-BAH-leh',
+    notes: 'Standard appreciation in Luganda.',
+    lang: 'Luganda',
+  },
+  'nkwagala nnyo': {
+    trans: 'I love you very much',
+    pron: 'n-kwah-GAH-lah nn-YOH',
+    notes: 'Luganda love expression.',
+    lang: 'Luganda',
+  },
+  'nkwagala': {
+    trans: 'I love you',
+    pron: 'n-kwah-GAH-lah',
+    notes: 'Luganda declaration of love.',
+    lang: 'Luganda',
+  },
+  'olidde ekyemisana': {
+    trans: 'Have you eaten lunch?',
+    pron: 'oh-LEED-deh eh-chyeh-mee-SAH-nah',
+    notes: 'Midday meal caring greeting.',
+    lang: 'Luganda',
+  },
+  'olidde': {
+    trans: 'Have you eaten?',
+    pron: 'oh-LEED-deh',
+    notes: 'Buganda caring inquiry.',
+    lang: 'Luganda',
+  },
+  'habari yako daktari wetu': {
+    trans: 'How are you, our doctor?',
+    pron: 'hah-BAH-ree YAH-koh dahk-TAH-ree WEH-too',
+    notes: 'Respectful East African Swahili greeting.',
+    lang: 'Swahili',
+  },
+  'bawo ni dokita wa': {
+    trans: 'Hello, our doctor',
+    pron: 'BAH-woh nee DOH-kee-tah wah',
+    notes: 'Warm Yoruba greeting to medical provider.',
+    lang: 'Yoruba',
+  },
+  'how you dey doctor': {
+    trans: 'How are you, doctor?',
+    pron: 'how-yoo-day DOK-toh',
+    notes: 'Warm Nigerian Pidgin greeting.',
+    lang: 'Nigerian Pidgin',
+  },
+};
+
 // Morpho-syntactic dictionary for clause-level and token-level translation
 const AFRICAN_GLOSSARY: Record<string, { en: string; lang: string }> = {
   // Swahili
@@ -369,6 +583,9 @@ const AFRICAN_GLOSSARY: Record<string, { en: string; lang: string }> = {
   usiku: { en: 'night', lang: 'Swahili' },
   hospitali: { en: 'hospital', lang: 'Swahili' },
   daktari: { en: 'doctor', lang: 'Swahili' },
+  wetu: { en: 'our', lang: 'Swahili' },
+  yako: { en: 'your', lang: 'Swahili' },
+  yangu: { en: 'my', lang: 'Swahili' },
   chakula: { en: 'food', lang: 'Swahili' },
   maji: { en: 'water', lang: 'Swahili' },
   pesa: { en: 'money', lang: 'Swahili' },
@@ -381,6 +598,7 @@ const AFRICAN_GLOSSARY: Record<string, { en: string; lang: string }> = {
 
   // Luganda
   omulwadde: { en: 'patient', lang: 'Luganda' },
+  mulwadde: { en: 'sick person', lang: 'Luganda' },
   alina: { en: 'has', lang: 'Luganda' },
   nnina: { en: 'I have', lang: 'Luganda' },
   tulina: { en: 'we have', lang: 'Luganda' },
@@ -403,6 +621,8 @@ const AFRICAN_GLOSSARY: Record<string, { en: string; lang: string }> = {
   ekiro: { en: 'night', lang: 'Luganda' },
   eddwaaliro: { en: 'hospital', lang: 'Luganda' },
   musawo: { en: 'doctor / healthcare worker', lang: 'Luganda' },
+  waffe: { en: 'our', lang: 'Luganda' },
+  wange: { en: 'my', lang: 'Luganda' },
   emmere: { en: 'food', lang: 'Luganda' },
   amazzi: { en: 'water', lang: 'Luganda' },
   ensimbi: { en: 'money', lang: 'Luganda' },
@@ -413,15 +633,27 @@ const AFRICAN_GLOSSARY: Record<string, { en: string; lang: string }> = {
   makoola: { en: 'leaves / foliage', lang: 'Luganda' },
   oli: { en: 'how are you / you are', lang: 'Luganda' },
   otya: { en: 'how', lang: 'Luganda' },
+  nno: { en: 'now / indeed', lang: 'Luganda' },
+  gyebale: { en: 'thank you for your work', lang: 'Luganda' },
   gyebaleko: { en: 'greetings / well done', lang: 'Luganda' },
   weebale: { en: 'thank you', lang: 'Luganda' },
   obuyambi: { en: 'assistance / help', lang: 'Luganda' },
   mwattu: { en: 'please', lang: 'Luganda' },
+  bannange: { en: 'my friends / oh dear', lang: 'Luganda' },
+  kale: { en: 'okay / alright', lang: 'Luganda' },
+  bulungi: { en: 'well / peacefully', lang: 'Luganda' },
+  sula: { en: 'sleep', lang: 'Luganda' },
+  siiba: { en: 'spend the day', lang: 'Luganda' },
+  wasuze: { en: 'good morning / did you sleep', lang: 'Luganda' },
+  olidde: { en: 'have you eaten', lang: 'Luganda' },
+  walidde: { en: 'did you eat', lang: 'Luganda' },
   ye: { en: 'yes', lang: 'Luganda' },
   nedda: { en: 'no', lang: 'Luganda' },
 
   // Yoruba
   alaisan: { en: 'patient', lang: 'Yoruba' },
+  dokita: { en: 'doctor', lang: 'Yoruba' },
+  wa: { en: 'our', lang: 'Yoruba' },
   iba: { en: 'fever', lang: 'Yoruba' },
   ara: { en: 'body', lang: 'Yoruba' },
   gbona: { en: 'hot / feverish', lang: 'Yoruba' },
@@ -501,6 +733,70 @@ export function translatePolyglotClient(
   const clean = text.trim();
   const cleanLower = clean.toLowerCase().replace(/[.,!?;:()]/g, ' ').replace(/\s+/g, ' ').trim();
   const canonicalTarget = normalizeLanguageName(targetLang);
+
+  // Check African-to-English phrases first
+  if (canonicalTarget === 'English') {
+    if (AFRICAN_TO_ENGLISH_PHRASES[cleanLower]) {
+      const match = AFRICAN_TO_ENGLISH_PHRASES[cleanLower];
+      return {
+        translatedText: match.trans,
+        sourceLanguage: match.lang,
+        targetLanguage: 'English',
+        pronunciationGuide: match.pron,
+        literalBreakdown: `Idiomatic expression in ${match.lang}`,
+        linguisticNotes: match.notes,
+        detectedCodeSwitching: true,
+        confidence: 0.99,
+        engine: 'Sahara Polyglot Engine (Vercel Standalone)',
+        provider: 'Intron Sahara Hybrid Engine',
+        isLiveAi: false,
+        isClientFallback: true,
+        latencyMs: Date.now() - startTime,
+      };
+    }
+
+    // Substring / multi-phrase replacement from longest phrase to shortest
+    const phraseKeys = Object.keys(AFRICAN_TO_ENGLISH_PHRASES).sort((a, b) => b.length - a.length);
+    let workingText = cleanLower;
+    let matchedCount = 0;
+    let detectedLang = 'Luganda';
+    let matchedNotes = '';
+
+    for (const pk of phraseKeys) {
+      if (workingText.includes(pk)) {
+        const item = AFRICAN_TO_ENGLISH_PHRASES[pk];
+        workingText = workingText.replace(new RegExp(pk, 'g'), item.trans);
+        matchedCount++;
+        detectedLang = item.lang;
+        if (!matchedNotes) matchedNotes = item.notes;
+      }
+    }
+
+    if (matchedCount > 0) {
+      const polished = workingText
+        .split(/[.?]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+        .join('. ') + (clean.endsWith('?') ? '?' : clean.endsWith('!') ? '!' : '.');
+
+      return {
+        translatedText: polished,
+        sourceLanguage: detectedLang,
+        targetLanguage: 'English',
+        pronunciationGuide: generatePhoneticGuide(clean, detectedLang),
+        literalBreakdown: `Multi-clause harmonization into English`,
+        linguisticNotes: matchedNotes || `Cultural and clinical African phrase harmonization.`,
+        detectedCodeSwitching: true,
+        confidence: 0.98,
+        engine: 'Sahara Polyglot Engine (Vercel Standalone)',
+        provider: 'Intron Sahara Hybrid Engine',
+        isLiveAi: false,
+        isClientFallback: true,
+        latencyMs: Date.now() - startTime,
+      };
+    }
+  }
 
   // Check direct phrasebook match
   for (const [key, entry] of Object.entries(PHRASEBOOK)) {
