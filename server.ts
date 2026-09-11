@@ -701,6 +701,37 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
           ? referenceGroundTruths['sample-hausa-agri-04']
           : referenceGroundTruths['sample-yoruba-care-01']);
 
+    // African language code mapping for Intron Voice STT (use_language_asr_input)
+    const AFRICAN_ASR_LANGUAGE_CODES: Record<string, string> = {
+      'Swahili-English': 'sw',
+      'Swahili': 'sw',
+      'Yoruba-English': 'yo',
+      'Yoruba': 'yo',
+      'Hausa-English': 'ha',
+      'Hausa': 'ha',
+      'Nigerian Pidgin-English': 'pcm',
+      'Nigerian Pidgin': 'pcm',
+      'Pidgin': 'pcm',
+      'Zulu-English': 'zu',
+      'Zulu': 'zu',
+      'Luganda-English': 'lg',
+      'Luganda': 'lg',
+      'Kinyarwanda-English': 'rw',
+      'Kinyarwanda': 'rw',
+      'Amharic': 'am',
+      'Wolof': 'wo',
+      'Afrikaans': 'af',
+      'Twi': 'ak',
+      'Igbo': 'ig',
+      'English': 'en',
+    };
+
+    const resolvedAsrLanguage =
+      req.body.use_language_asr_input ||
+      (languagePair && AFRICAN_ASR_LANGUAGE_CODES[languagePair]) ||
+      (languagePair && AFRICAN_ASR_LANGUAGE_CODES[languagePair.split('-')[0]]) ||
+      'en';
+
     // Case 0: Explicit Reference Sample Decode (No live audio recorded)
     if (isCuratedSample) {
       return res.json({
@@ -721,23 +752,22 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
     }
 
     // Case 1: Custom Vernacular Text directly provided (no audio binary)
+    // Honest labeling: There is no audio for Sahara ASR to decode, so this is direct lexical ingestion.
     if (hasCustomText && !hasAudio) {
       return res.json({
-        status: 'custom_vernacular_ingested',
-        inferenceType: saharaApiKey ? 'LIVE_SAHARA_INFERENCE' : 'DEMO_FALLBACK',
-        badge: saharaApiKey ? '🟢 LIVE SAHARA INFERENCE' : '🟡 DEMO FALLBACK',
-        isLiveInference: Boolean(saharaApiKey),
-        executionMode: saharaApiKey
-          ? 'LIVE_SAHARA_VERNACULAR_INGESTION'
-          : 'DEMO_ACOUSTIC_FALLBACK',
-        model: 'Sahara-ASR-Africa-v2.4',
-        provider: 'Sahara Voice ASR (Direct Vernacular Speech Ingestion)',
+        status: 'custom_text_analysis',
+        inferenceType: 'CUSTOM_TEXT_ANALYSIS',
+        badge: '📝 CUSTOM TEXT / ANALYSIS',
+        isLiveInference: false,
+        executionMode: 'CUSTOM_TEXT_INPUT',
+        model: 'Direct Lexical Ingestion (No Audio ASR)',
+        provider: 'User Text Input (Direct Code-Switch & Agentic Analysis)',
         transcript: fallbackTranscript,
-        confidence: 0.988,
-        latencyMs: 85,
+        confidence: 1.0,
+        latencyMs: 15,
         languagePair: languagePair || 'Swahili-English',
         vocabBoostedTerms: customVocab || [],
-        diagnosticMessage: `Ingested vernacular speech utterance "${fallbackTranscript}" into Sahara speech & code-switch pipeline.`,
+        diagnosticMessage: 'Custom vernacular text supplied directly without audio recording. Acoustic ASR transcription bypassed; proceeding directly to dialect code-switch intelligence and agentic dispatch.',
       });
     }
 
@@ -745,7 +775,7 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
     if (saharaApiKey && saharaApiKey.trim().length > 0 && hasAudio) {
       const startTime = Date.now();
       try {
-        console.log(`[Sahara API] Transcribing audio via official Intron Sync API (${officialIntronSyncEndpoint}) for ${languagePair || 'Swahili-English'}...`);
+        console.log(`[Sahara API] Transcribing audio via official Intron Sync API (${officialIntronSyncEndpoint}) for ${languagePair || 'Swahili-English'} [use_language_asr_input=${resolvedAsrLanguage}]...`);
 
         // Prepare multipart/form-data as specified in official Intron Voice STT docs
         const cleanBase64 = audio.replace(/^data:audio\/\w+;base64,/, '');
@@ -753,6 +783,7 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
         const formatLower = (audioFormat || 'webm').toLowerCase();
         const mimeType = formatLower === 'wav' ? 'audio/wav' : 'audio/webm';
         const fileExt = formatLower === 'wav' ? 'wav' : 'webm';
+        const resolvedFileName = req.body.audio_file_name || `recording.${fileExt}`;
 
         const endpointsToTry = [
           customEndpoint,
@@ -774,12 +805,20 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
             // Fresh FormData instance per attempt to prevent consumed stream issues
             const syncFormData = new FormData();
             const audioBlob = new Blob([audioBuffer], { type: mimeType });
-            syncFormData.append('audio_file_blob', audioBlob, `recording.${fileExt}`);
-            syncFormData.append('file', audioBlob, `recording.${fileExt}`);
-            syncFormData.append('audio_file_name', `recording.${fileExt}`);
+
+            // Official Intron Voice STT sync file upload multipart parameters:
+            // 1. audio_file_name (String)
+            // 2. audio_file_blob (Blob/binary)
+            // 3. use_language_asr_input (String language code, e.g. 'sw', 'yo', 'ha', 'pcm', etc.)
+            syncFormData.append('audio_file_name', resolvedFileName);
+            syncFormData.append('audio_file_blob', audioBlob, resolvedFileName);
+            syncFormData.append('use_language_asr_input', resolvedAsrLanguage);
+
+            // Secondary / backward-compatible aliases for alternative gateways
+            syncFormData.append('file', audioBlob, resolvedFileName);
+            syncFormData.append('language_code', resolvedAsrLanguage);
             syncFormData.append('language', languagePair || 'Swahili-English');
             syncFormData.append('language_pair', languagePair || 'Swahili-English');
-            syncFormData.append('language_code', languagePair || 'Swahili-English');
             if (Array.isArray(customVocab) && customVocab.length > 0) {
               syncFormData.append('custom_vocabulary', JSON.stringify(customVocab));
             }
@@ -827,7 +866,9 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
           apiResponse?.data?.text ||
           apiResponse?.transcript ||
           apiResponse?.text ||
-          (Array.isArray(apiResponse?.data?.results) && apiResponse.data.results[0]?.transcript);
+          apiResponse?.result ||
+          (Array.isArray(apiResponse?.data?.results) && apiResponse.data.results[0]?.transcript) ||
+          (Array.isArray(apiResponse?.results) && apiResponse.results[0]?.transcript);
 
         if (liveTranscript && typeof liveTranscript === 'string' && liveTranscript.trim().length > 0) {
           console.log(`[Sahara API] Live inference succeeded in ${elapsedMs}ms via ${successfulEndpoint}:`, liveTranscript);
@@ -850,6 +891,8 @@ Perform deep linguistic and agentic analysis and return ONLY a valid JSON object
               transport: 'multipart/form-data',
               authType: 'Bearer',
               audioFormat: fileExt,
+              audio_file_name: resolvedFileName,
+              use_language_asr_input: resolvedAsrLanguage,
             },
           });
         } else {

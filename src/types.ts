@@ -96,7 +96,8 @@ export interface BenchmarkAggregateMetric {
 export type InferenceStatusType =
   | 'LIVE_SAHARA_INFERENCE'
   | 'DEMO_FALLBACK'
-  | 'REFERENCE_TRANSCRIPT';
+  | 'REFERENCE_TRANSCRIPT'
+  | 'CUSTOM_TEXT_ANALYSIS';
 
 export interface SaharaASROutput {
   status?: string;

@@ -53,7 +53,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
   const [asrOutput, setAsrOutput] = useState<{
     transcript: string;
     isLiveInference: boolean;
-    inferenceType?: 'LIVE_SAHARA_INFERENCE' | 'DEMO_FALLBACK' | 'REFERENCE_TRANSCRIPT';
+    inferenceType?: 'LIVE_SAHARA_INFERENCE' | 'DEMO_FALLBACK' | 'REFERENCE_TRANSCRIPT' | 'CUSTOM_TEXT_ANALYSIS';
     badge?: string;
     status: string;
     latencyMs: number;
@@ -69,6 +69,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
   const [recordingDuration, setRecordingDuration] = useState<number>(0);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [recordedAudioBase64, setRecordedAudioBase64] = useState<string | null>(null);
+  const [browserInterimTranscript, setBrowserInterimTranscript] = useState<string>('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
@@ -253,7 +254,8 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
 
   // Start Mic Recording with Web Speech Recognition fallback for live speech-to-text
   const startRecording = async () => {
-    // 1. Try browser SpeechRecognition for live real-time transcript streaming
+    setBrowserInterimTranscript('');
+    // 1. Try browser SpeechRecognition for live real-time transcript streaming preview
     const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognitionClass) {
       try {
@@ -267,7 +269,8 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
             liveText += event.results[i][0].transcript + ' ';
           }
           if (liveText.trim()) {
-            setCustomAudioText(liveText.trim());
+            // Keep strictly in browserInterimTranscript so it does not falsely masquerade as Sahara ASR output
+            setBrowserInterimTranscript(liveText.trim());
           }
         };
         recognition.onerror = (e: any) => console.warn('Speech recognition warning:', e);
@@ -502,12 +505,25 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
   // Run Real Sahara ASR & Gemini Agentic Extraction (Speech -> Code-Switch Intelligence -> Action)
   const handleRunAgent = async (categoryPreset?: string, textOverride?: string) => {
     setIsProcessing(true);
-    const targetText = textOverride !== undefined ? textOverride : (inputMode === 'mic' && customAudioText ? customAudioText.trim() : undefined);
+    const hasRecordedAudio = Boolean(inputMode === 'mic' && recordedAudioBase64);
+    const hasExplicitText = typeof textOverride === 'string' && textOverride.trim().length > 0;
+    const hasCustomTypedText = Boolean(inputMode === 'mic' && !hasRecordedAudio && customAudioText && customAudioText.trim().length > 0);
+
+    // African language code mapping for Intron Voice STT (use_language_asr_input)
+    const asrLangCode =
+      selectedLanguage === 'Swahili-English' ? 'sw' :
+      selectedLanguage === 'Yoruba-English' ? 'yo' :
+      selectedLanguage === 'Hausa-English' ? 'ha' :
+      selectedLanguage === 'Nigerian Pidgin-English' ? 'pcm' :
+      selectedLanguage === 'Zulu-English' ? 'zu' :
+      selectedLanguage === 'Luganda-English' ? 'lg' :
+      selectedLanguage === 'Kinyarwanda-English' ? 'rw' : 'en';
 
     try {
       // Step 1: Query Sahara ASR Proxy (/api/sahara/transcribe)
       const asrPayload: any = {
         languagePair: selectedLanguage,
+        use_language_asr_input: asrLangCode,
         sampleId: inputMode === 'sample' ? activeSample.id : undefined,
         customVocab: [
           'artemether',
@@ -525,15 +541,21 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
         ],
       };
 
-      if (inputMode === 'mic') {
-        if (targetText) {
-          asrPayload.text = targetText;
-        }
-        if (recordedAudioBase64) {
+      if (hasExplicitText) {
+        // Explicit text passed directly (e.g. from a quick preset)
+        asrPayload.text = textOverride!.trim();
+      } else if (inputMode === 'mic') {
+        if (hasRecordedAudio) {
+          // Acoustic Voice Mode: send raw recorded audio to Sahara ASR.
+          // CRITICAL: We do NOT send browser SpeechRecognition text here!
+          // Sahara Voice STT must transcribe the raw recorded audio via audio_file_blob.
           asrPayload.audio = recordedAudioBase64;
+          asrPayload.audioFormat = 'webm';
+          asrPayload.audio_file_name = 'mic_recording.webm';
+        } else if (hasCustomTypedText) {
+          // Direct Text Input Mode: user typed text directly without recording audio.
+          asrPayload.text = customAudioText.trim();
         }
-      } else if (targetText) {
-        asrPayload.text = targetText;
       }
 
       const savedSaharaKey = localStorage.getItem('sahara_api_key');
@@ -551,7 +573,11 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
 
       const transcriptToProcess =
         asrData.transcript ||
-        (targetText && targetText.length > 0 ? targetText : activeSample.groundTruth);
+        (hasExplicitText
+          ? textOverride!.trim()
+          : hasCustomTypedText
+          ? customAudioText.trim()
+          : activeSample.groundTruth);
 
       // Step 2: Layer 2 Code-Switch Intelligence & Layer 3 Action
       const openRouterKey = localStorage.getItem('openrouter_api_key') || '';
@@ -568,7 +594,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
         body: JSON.stringify({
           transcript: transcriptToProcess,
           languagePair: selectedLanguage,
-          domain: categoryPreset || (targetText ? 'general' : activeSample.category.toLowerCase()),
+          domain: categoryPreset || (hasExplicitText || hasCustomTypedText ? 'general' : activeSample.category.toLowerCase()),
           openRouterApiKey: openRouterKey || undefined,
           grokApiKey: grokKey || undefined,
           geminiApiKey: geminiKey || undefined,
@@ -591,15 +617,35 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
     } catch (e) {
       console.warn('API error, applying intelligent fallback:', e);
       const isSwahili = selectedLanguage === 'Swahili-English';
-      const effectiveText = targetText || (inputMode === 'mic' && customAudioText ? customAudioText.trim() : activeSample.groundTruth);
+      const effectiveText =
+        hasExplicitText
+          ? textOverride!.trim()
+          : hasCustomTypedText
+          ? customAudioText.trim()
+          : activeSample.groundTruth;
 
       // Ensure ASR indicator has state
       setAsrOutput((prev) => prev || {
         transcript: effectiveText,
         isLiveInference: false,
-        inferenceType: inputMode === 'sample' ? 'REFERENCE_TRANSCRIPT' : 'DEMO_FALLBACK',
-        badge: inputMode === 'sample' ? '⚪ REFERENCE TRANSCRIPT' : '🟡 DEMO FALLBACK',
-        status: inputMode === 'sample' ? 'reference_sample' : 'demo_fallback',
+        inferenceType:
+          inputMode === 'sample'
+            ? 'REFERENCE_TRANSCRIPT'
+            : hasCustomTypedText
+            ? 'CUSTOM_TEXT_ANALYSIS'
+            : 'DEMO_FALLBACK',
+        badge:
+          inputMode === 'sample'
+            ? '⚪ REFERENCE TRANSCRIPT'
+            : hasCustomTypedText
+            ? '📝 CUSTOM TEXT / ANALYSIS'
+            : '🟡 DEMO FALLBACK',
+        status:
+          inputMode === 'sample'
+            ? 'reference_sample'
+            : hasCustomTypedText
+            ? 'custom_text_analysis'
+            : 'demo_fallback',
         latencyMs: 120,
         confidence: 0.945,
         model: 'Sahara-ASR-Africa-v2.4 (Fallback)',
@@ -1016,7 +1062,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-3">
+                <div className="flex flex-wrap items-center gap-3">
                   {!isRecording ? (
                     <button
                       id="start-mic-record-btn"
@@ -1033,28 +1079,83 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
                       className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-2 transition-all shadow-[2px_2px_0px_0px_black]"
                     >
                       <Square className="w-4 h-4 fill-white" />
-                      <span>Stop & Transcribe</span>
+                      <span>Stop & Finalize Audio</span>
                     </button>
                   )}
 
                   {recordedAudioUrl && (
-                    <button
-                      onClick={() => playUtteranceAudio()}
-                      className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-mono font-bold border border-black/20 flex items-center space-x-1.5"
-                      title="Play your recorded audio clip"
-                    >
-                      <Headphones className="w-3.5 h-3.5 text-[#F27D26]" />
-                      <span>Replay Mic Audio</span>
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => playUtteranceAudio()}
+                        className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-mono font-bold border border-black/20 flex items-center space-x-1.5"
+                        title="Play your recorded audio clip"
+                      >
+                        <Headphones className="w-3.5 h-3.5 text-[#F27D26]" />
+                        <span>Replay Captured Audio</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setRecordedAudioUrl(null);
+                          setRecordedAudioBase64(null);
+                          setBrowserInterimTranscript('');
+                        }}
+                        className="px-2.5 py-2 text-stone-500 hover:text-red-600 text-xs font-mono underline"
+                        title="Discard recorded audio clip"
+                      >
+                        Discard Audio
+                      </button>
+                    </div>
                   )}
                 </div>
+
+                {/* Client-Side WebSpeech Interim Preview (Explicitly tagged so it is never confused with Sahara ASR) */}
+                {browserInterimTranscript && (
+                  <div className="p-2.5 bg-amber-50/90 border border-amber-300 text-xs text-amber-950 flex flex-col gap-1">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-amber-800">
+                      <span className="font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping" />
+                        <span>Client-Side WebSpeech Interim Preview (Live local speech draft):</span>
+                      </span>
+                      <span className="bg-amber-200/60 px-1.5 py-0.5 border border-amber-300 uppercase tracking-wider text-[9px] font-bold">
+                        Browser Fallback Preview
+                      </span>
+                    </div>
+                    <div className="font-serif italic text-stone-900 font-medium">"{browserInterimTranscript}"</div>
+                    <div className="text-[10px] text-stone-600 flex flex-wrap items-center justify-between gap-1 pt-0.5 border-t border-amber-200">
+                      <span>Official Intron Voice STT will perform true acoustic decoding on <code className="font-mono bg-amber-100 px-1">audio_file_blob</code> upon submission.</span>
+                      <button
+                        type="button"
+                        onClick={() => setCustomAudioText(browserInterimTranscript)}
+                        className="underline text-stone-800 hover:text-black font-sans font-semibold ml-2"
+                        title="Copy interim preview into text input for manual editing"
+                      >
+                        Copy to text editor ➔
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Captured Audio Ready Banner */}
+                {recordedAudioUrl && !isRecording && (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-300 text-xs text-emerald-950 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
+                      <span className="font-mono font-bold text-xs">Audio Captured ({recordingDuration || '1'}s, webm)</span>
+                      <span className="text-[10px] text-stone-600">
+                        • Ready for Intron Voice STT sync upload (<code className="font-mono">audio_file_blob</code>, <code className="font-mono">use_language_asr_input</code>)
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold uppercase tracking-wider text-stone-700 block">
-                      Type vernacular utterance or edit speech input:
+                      {recordedAudioBase64
+                        ? 'Optional text override (or leave empty to decode mic audio via Sahara ASR):'
+                        : 'Type vernacular utterance (Direct text analysis without audio):'}
                     </label>
-                    <span className="text-[10px] text-stone-500 font-mono">Press Enter to transcribe</span>
+                    <span className="text-[10px] text-stone-500 font-mono">Press Enter to run</span>
                   </div>
                   <textarea
                     value={customAudioText}
@@ -1065,7 +1166,11 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
                         handleRunAgent();
                       }
                     }}
-                    placeholder="e.g. habari, or Doctor, ara mi gbona gan since yesterday..."
+                    placeholder={
+                      recordedAudioBase64
+                        ? 'Mic audio captured. Click Transcribe Audio below, or type text here to test direct text mode...'
+                        : 'e.g. habari, or Doctor, ara mi gbona gan since yesterday...'
+                    }
                     rows={2}
                     className="w-full bg-[#FAF8F5] border border-black/25 p-2.5 text-xs text-black placeholder-stone-400 focus:outline-none focus:border-black font-mono shadow-inner"
                   />
@@ -1080,7 +1185,11 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
                       >
                         <Zap className="w-3.5 h-3.5 fill-white" />
                         <span>
-                          Transcribe & Analyze {customAudioText.trim() ? `"${customAudioText.trim().slice(0, 18)}"` : ''}
+                          {recordedAudioBase64
+                            ? 'Transcribe Mic Audio via Sahara ASR'
+                            : customAudioText.trim()
+                            ? `Analyze Custom Text "${customAudioText.trim().slice(0, 18)}"`
+                            : 'Transcribe & Analyze'}
                         </span>
                       </button>
 
@@ -1217,10 +1326,18 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
                     {asrOutput.inferenceType === 'LIVE_SAHARA_INFERENCE' || asrOutput.isLiveInference ? (
                       <span
                         className="inline-flex items-center gap-1 px-2 py-0.5 font-bold uppercase tracking-wider bg-emerald-100 text-emerald-950 border border-emerald-500 shadow-sm"
-                        title="Live acoustic decoding and code-switch transcription"
+                        title="Live acoustic decoding of audio_file_blob by Intron Voice Sync API"
                       >
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         <span>🟢 LIVE SAHARA INFERENCE</span>
+                      </span>
+                    ) : asrOutput.inferenceType === 'CUSTOM_TEXT_ANALYSIS' ? (
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 font-bold uppercase tracking-wider bg-sky-100 text-sky-950 border border-sky-500 shadow-sm"
+                        title="Custom vernacular text supplied directly without audio recording"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-sky-500" />
+                        <span>📝 CUSTOM TEXT / ANALYSIS</span>
                       </span>
                     ) : asrOutput.inferenceType === 'DEMO_FALLBACK' ? (
                       <span
@@ -1271,7 +1388,7 @@ export const LiveAgentLab: React.FC<LiveAgentLabProps> = () => {
               {/* Verbatim Transcript Box */}
               <div className="p-3 bg-white border border-black/15 text-sm leading-relaxed font-serif italic text-stone-900 flex items-start justify-between gap-2">
                 <span className="flex-1">
-                  "{asrOutput?.transcript || (inputMode === 'mic' && customAudioText.trim() ? customAudioText.trim() : activeSample.groundTruth)}"
+                  "{asrOutput?.transcript || (inputMode === 'mic' && recordedAudioBase64 ? '[Audio recorded - Click Transcribe to run Sahara Voice STT]' : inputMode === 'mic' && customAudioText.trim() ? customAudioText.trim() : activeSample.groundTruth)}"
                 </span>
                 <button
                   onClick={() => playUtteranceAudio(asrOutput?.transcript || (inputMode === 'mic' && customAudioText.trim() ? customAudioText.trim() : activeSample.groundTruth))}
